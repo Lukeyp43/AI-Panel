@@ -9,6 +9,7 @@ A modern Anki addon that integrates OpenEvidence directly into your Anki interfa
 - 🎯 **Modern UI**: Minimalistic design with smooth hover effects
 - 🔄 **Flexible Layout**: Dock, undock, or resize the panel as needed
 - ⚡ **Quick Access**: Toggle the panel on/off with a single click
+- ⌨️ **Tab Key Shortcut**: Press Tab while reviewing to send card text directly to OpenEvidence search
 
 ## Installation
 
@@ -37,6 +38,21 @@ A modern Anki addon that integrates OpenEvidence directly into your Anki interfa
    - Resize the panel by dragging the separator
    - Undock the panel by clicking the pop-out button
    - Close the panel by clicking the X button or the toolbar icon
+
+### Quick Search Feature ⚡
+
+Press **Tab** to automatically send the current card's text to the OpenEvidence search box - works from anywhere!
+
+**Works in two ways:**
+1. **Press Tab while reviewing in Anki** → Sends the current card text to OpenEvidence
+2. **Press Tab while focused on the OpenEvidence panel** → Fills the search box with the current card text
+
+**How it works:**
+- Press Tab on the **question side** → Sends the question text
+- Press Tab on the **answer side** → Sends the answer text  
+- The OpenEvidence panel will automatically open if it's hidden
+- The text will be inserted into the search box, ready for you to search
+- Works whether you're focused on the Anki card OR the OpenEvidence panel!
 
 ## Configuration
 
