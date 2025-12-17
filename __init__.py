@@ -74,6 +74,11 @@ def toggle_panel():
     if dock_widget.isVisible():
         dock_widget.hide()
     else:
+        # If the dock is floating, dock it back to the right side
+        if dock_widget.isFloating():
+            dock_widget.setFloating(False)
+            mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_widget)
+        
         dock_widget.show()
         dock_widget.raise_()
 
