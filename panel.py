@@ -1,0 +1,704 @@
+"""
+Main panel components for the OpenEvidence add-on.
+Contains the CustomTitleBar, OpenEvidencePanel, and OnboardingWidget.
+"""
+
+import json
+import webbrowser
+from aqt import mw
+from aqt.qt import *
+
+try:
+    from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+                                  QDockWidget, QStackedWidget)
+    from PyQt6.QtCore import Qt, QUrl, QTimer, QByteArray, QSize
+    from PyQt6.QtGui import QIcon, QPixmap, QPainter, QCursor, QColor
+    from PyQt6.QtSvg import QSvgRenderer
+    from PyQt6.QtWebEngineWidgets import QWebEngineView
+    from PyQt6.QtWebEngineCore import QWebEngineSettings
+except ImportError:
+    from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+                                  QDockWidget, QStackedWidget)
+    from PyQt5.QtCore import Qt, QUrl, QTimer, QByteArray, QSize
+    from PyQt5.QtGui import QIcon, QPixmap, QPainter, QCursor, QColor
+    from PyQt5.QtSvg import QSvgRenderer
+    try:
+        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
+    except ImportError:
+        from aqt.qt import QWebEngineView
+        try:
+            from aqt.qt import QWebEngineSettings
+        except:
+            QWebEngineSettings = None
+
+from .settings import SettingsListView, SettingsEditorView
+
+
+class CustomTitleBar(QWidget):
+    """Custom title bar with pointer cursor on buttons"""
+    def __init__(self, dock_widget, parent=None):
+        super().__init__(parent)
+        self.dock_widget = dock_widget
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 4, 4, 4)
+        layout.setSpacing(2)
+
+        # Title label
+        self.title_label = QLabel("OpenEvidence")
+        self.title_label.setStyleSheet("color: rgba(255, 255, 255, 0.9); font-size: 13px; font-weight: 500;")
+        layout.addWidget(self.title_label)
+
+        # Add stretch to push buttons to the right
+        layout.addStretch()
+
+        # Float/Undock button with high-quality SVG icon
+        self.float_button = QPushButton()
+        self.float_button.setFixedSize(24, 24)
+        self.float_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        # Create high-resolution SVG icon for float button
+        float_icon_svg = """<?xml version="1.0" encoding="UTF-8"?>
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="6" width="36" height="36" stroke="white" stroke-width="3" fill="none" rx="3"/>
+            <path d="M18 6 L18 18 L6 18" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M30 42 L30 30 L42 30" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        """
+
+        # Render SVG at higher resolution for crisp display
+        svg_bytes = QByteArray(float_icon_svg.encode())
+        renderer = QSvgRenderer(svg_bytes)
+        pixmap = QPixmap(48, 48)
+        try:
+            pixmap.fill(Qt.GlobalColor.transparent)
+        except:
+            pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+
+        self.float_button.setIcon(QIcon(pixmap))
+        self.float_button.setIconSize(QSize(14, 14))
+
+        self.float_button.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.12);
+            }
+        """)
+        self.float_button.clicked.connect(self.toggle_floating)
+        layout.addWidget(self.float_button)
+
+        # Settings/Gear button with high-quality SVG icon
+        self.settings_button = QPushButton()
+        self.settings_button.setFixedSize(24, 24)
+        self.settings_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        # Create high-resolution SVG icon for settings button
+        settings_icon_svg = """<?xml version="1.0" encoding="UTF-8"?>
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="4" stroke="white" stroke-width="3" fill="none"/>
+            <path d="M24 8v4m0 24v4m8-32l-2 3.5m-12 25l-2 3.5m24-8l-3.5-2m-25-12l-3.5-2m32 24l-3.5 2m-25-12l-3.5 2m32-8h-4m-24 0H8" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        """
+
+        # Render SVG at higher resolution for crisp display
+        svg_bytes_settings = QByteArray(settings_icon_svg.encode())
+        renderer_settings = QSvgRenderer(svg_bytes_settings)
+        pixmap_settings = QPixmap(48, 48)
+        try:
+            pixmap_settings.fill(Qt.GlobalColor.transparent)
+        except:
+            pixmap_settings.fill(Qt.transparent)
+        painter_settings = QPainter(pixmap_settings)
+        renderer_settings.render(painter_settings)
+        painter_settings.end()
+
+        self.settings_button.setIcon(QIcon(pixmap_settings))
+        self.settings_button.setIconSize(QSize(14, 14))
+
+        self.settings_button.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.12);
+            }
+        """)
+        self.settings_button.clicked.connect(self.toggle_settings)
+        layout.addWidget(self.settings_button)
+
+        # Close button with high-quality SVG icon
+        self.close_button = QPushButton()
+        self.close_button.setFixedSize(24, 24)
+        self.close_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        # Create high-resolution SVG icon for close button
+        close_icon_svg = """<?xml version="1.0" encoding="UTF-8"?>
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 8 L40 40 M40 8 L8 40" stroke="white" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        """
+
+        # Render SVG at higher resolution for crisp display
+        svg_bytes_close = QByteArray(close_icon_svg.encode())
+        renderer_close = QSvgRenderer(svg_bytes_close)
+        pixmap_close = QPixmap(48, 48)
+        try:
+            pixmap_close.fill(Qt.GlobalColor.transparent)
+        except:
+            pixmap_close.fill(Qt.transparent)
+        painter_close = QPainter(pixmap_close)
+        renderer_close.render(painter_close)
+        painter_close.end()
+
+        self.close_button.setIcon(QIcon(pixmap_close))
+        self.close_button.setIconSize(QSize(14, 14))
+
+        self.close_button.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background: rgba(239, 68, 68, 0.2);
+            }
+        """)
+        self.close_button.clicked.connect(self.dock_widget.hide)
+        layout.addWidget(self.close_button)
+
+        # Set background color for title bar - modern dark gray
+        self.setStyleSheet("background: #2a2a2a; border-bottom: 1px solid rgba(255, 255, 255, 0.06);")
+
+    def toggle_floating(self):
+        self.dock_widget.setFloating(not self.dock_widget.isFloating())
+
+    def toggle_settings(self):
+        """Toggle between web view and settings view"""
+        panel = self.dock_widget.widget()
+        if panel and hasattr(panel, 'toggle_settings_view'):
+            panel.toggle_settings_view()
+
+
+class OpenEvidencePanel(QWidget):
+    """Main panel containing the web view and settings views"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Create stacked widget to switch between views
+        self.stacked_widget = QStackedWidget()
+        layout.addWidget(self.stacked_widget)
+
+        # Create web view
+        self.web_container = QWidget()
+        web_layout = QVBoxLayout(self.web_container)
+        web_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.web = QWebEngineView(self.web_container)
+
+        # Prevent the webview from stealing focus on navigation
+        if QWebEngineSettings:
+            try:
+                self.web.settings().setAttribute(QWebEngineSettings.WebAttribute.FocusOnNavigationEnabled, False)
+            except:
+                pass
+
+        web_layout.addWidget(self.web)
+
+        # Inject listener after page loads
+        self.web.loadFinished.connect(self.inject_shift_key_listener)
+        self.web.load(QUrl("https://www.openevidence.com/"))
+
+        # Create settings view
+        self.settings_view = SettingsListView(self)
+
+        # Add views to stacked widget
+        self.stacked_widget.addWidget(self.web_container)  # Index 0
+        self.stacked_widget.addWidget(self.settings_view)  # Index 1
+
+        # Start with web view
+        self.stacked_widget.setCurrentIndex(0)
+
+    def toggle_settings_view(self):
+        """Toggle between web view and settings view"""
+        current = self.stacked_widget.currentIndex()
+        if current == 0:
+            # Switch to settings
+            # Reload settings in case they changed
+            self.settings_view.load_keybindings()
+            self.stacked_widget.setCurrentIndex(1)
+        else:
+            # Switch back to web
+            self.show_web_view()
+
+    def show_web_view(self):
+        """Show the web view"""
+        self.stacked_widget.setCurrentIndex(0)
+
+    def show_list_view(self):
+        """Show the settings list view"""
+        # Recreate settings view to refresh
+        self.stacked_widget.removeWidget(self.settings_view)
+        self.settings_view.deleteLater()
+        self.settings_view = SettingsListView(self)
+        self.stacked_widget.addWidget(self.settings_view)
+        self.stacked_widget.setCurrentIndex(1)
+
+    def show_editor_view(self, keybinding, index):
+        """Show the settings editor view"""
+        editor_view = SettingsEditorView(self, keybinding, index)
+        # Remove settings list and add editor
+        old_settings = self.settings_view
+        self.stacked_widget.removeWidget(old_settings)
+        old_settings.deleteLater()
+        self.stacked_widget.addWidget(editor_view)
+        self.stacked_widget.setCurrentIndex(1)
+
+    def inject_shift_key_listener(self):
+        """Inject JavaScript to listen for custom keybindings"""
+        # Get keybindings from config
+        config = mw.addonManager.getConfig(__name__) or {}
+        keybindings = config.get("keybindings", [])
+
+        # If no keybindings, add default
+        if not keybindings:
+            keybindings = [{
+                "name": "Default",
+                "keys": ["Shift", "Control/Meta"],
+                "question_template": "Can you explain this to me:\nQuestion:\n{question}",
+                "answer_template": "Can you explain this to me:\nQuestion:\n{question}\n\nAnswer:\n{answer}"
+            }]
+
+        # Convert keybindings to JSON for JavaScript
+        keybindings_json = json.dumps(keybindings)
+
+        listener_js = f"""
+        (function() {{
+            console.log('Anki: Custom keybinding listeners injected for OpenEvidence');
+
+            // Parse keybindings from Python
+            var keybindings = {keybindings_json};
+
+            // Helper to check if pressed keys match keybinding
+            function keysMatch(event, requiredKeys) {{
+                var pressedKeys = {{}};
+
+                if (event.shiftKey) pressedKeys['Shift'] = true;
+                if (event.ctrlKey || event.metaKey) pressedKeys['Control/Meta'] = true;
+                if (event.altKey) pressedKeys['Alt'] = true;
+
+                // Add regular key if present
+                if (event.key && event.key.length === 1) {{
+                    pressedKeys[event.key.toUpperCase()] = true;
+                }}
+
+                // Check if all required keys are pressed
+                for (var i = 0; i < requiredKeys.length; i++) {{
+                    if (!pressedKeys[requiredKeys[i]]) {{
+                        return false;
+                    }}
+                }}
+
+                // Check we don't have extra modifier keys
+                var expectedCount = requiredKeys.length;
+                var actualCount = Object.keys(pressedKeys).length;
+
+                return actualCount === expectedCount;
+            }}
+
+            // Helper to fill input field with text
+            function fillInputField(activeElement, text) {{
+                // Clear existing value first
+                activeElement.value = '';
+
+                // Use proper setter that React/Vue can detect
+                var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype,
+                    'value'
+                ).set;
+                var nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLTextAreaElement.prototype,
+                    'value'
+                ).set;
+
+                if (activeElement.tagName === 'INPUT') {{
+                    nativeInputValueSetter.call(activeElement, text);
+                }} else if (activeElement.tagName === 'TEXTAREA') {{
+                    nativeTextAreaValueSetter.call(activeElement, text);
+                }}
+
+                // Dispatch proper input event that React recognizes
+                var inputEvent = new InputEvent('input', {{
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: 'insertText',
+                    data: text
+                }});
+                activeElement.dispatchEvent(inputEvent);
+
+                // Also dispatch change event
+                var changeEvent = new Event('change', {{ bubbles: true }});
+                activeElement.dispatchEvent(changeEvent);
+
+                // Dispatch keyup event to trigger any validation
+                var keyupEvent = new KeyboardEvent('keyup', {{
+                    bubbles: true,
+                    cancelable: true,
+                    key: ' ',
+                    code: 'Space'
+                }});
+                activeElement.dispatchEvent(keyupEvent);
+            }}
+
+            // Listen for keyboard shortcuts on the entire document
+            document.addEventListener('keydown', function(event) {{
+                // Check if the ACTIVE ELEMENT is specifically the OpenEvidence search input
+                var activeElement = document.activeElement;
+
+                // Make sure we're in an input/textarea element
+                var isInputElement = activeElement && (
+                    activeElement.tagName === 'INPUT' ||
+                    activeElement.tagName === 'TEXTAREA'
+                );
+
+                // Make sure it's specifically the OpenEvidence search box
+                var isOpenEvidenceSearchBox = false;
+                if (isInputElement) {{
+                    var placeholder = activeElement.placeholder || '';
+                    var type = activeElement.type || '';
+
+                    isOpenEvidenceSearchBox = (
+                        placeholder.toLowerCase().includes('medical') ||
+                        placeholder.toLowerCase().includes('question') ||
+                        type === 'text' ||
+                        activeElement.tagName === 'TEXTAREA'
+                    );
+                }}
+
+                // Only proceed if in OpenEvidence search box
+                if (!isInputElement || !isOpenEvidenceSearchBox) {{
+                    return;
+                }}
+
+                // Check each keybinding
+                for (var i = 0; i < keybindings.length; i++) {{
+                    var binding = keybindings[i];
+
+                    if (keysMatch(event, binding.keys)) {{
+                        console.log('Anki: Keybinding "' + binding.name + '" triggered');
+                        event.preventDefault();
+
+                        // Get the appropriate text for this keybinding
+                        if (window.ankiCardTexts && window.ankiCardTexts[i]) {{
+                            fillInputField(activeElement, window.ankiCardTexts[i]);
+                            console.log('Anki: Filled search box with card text using React-compatible events');
+                        }} else {{
+                            console.log('Anki: No card text available for this keybinding');
+                        }}
+
+                        break; // Only trigger first matching keybinding
+                    }}
+                }}
+            }}, true);
+        }})();
+        """
+
+        self.web.page().runJavaScript(listener_js)
+
+        # Also inject the current card texts
+        self.update_card_text_in_js()
+
+    def update_card_text_in_js(self):
+        """Update the card texts in the JavaScript context for all keybindings"""
+        # Import here to avoid circular imports
+        from . import current_card_question, current_card_answer, is_showing_answer
+
+        # Get keybindings from config
+        config = mw.addonManager.getConfig(__name__) or {}
+        keybindings = config.get("keybindings", [])
+
+        # If no keybindings, add default
+        if not keybindings:
+            keybindings = [{
+                "name": "Default",
+                "keys": ["Shift", "Control/Meta"],
+                "question_template": "Can you explain this to me:\nQuestion:\n{question}",
+                "answer_template": "Can you explain this to me:\nQuestion:\n{question}\n\nAnswer:\n{answer}"
+            }]
+
+        # Generate text for each keybinding
+        card_texts = []
+        for kb in keybindings:
+            if is_showing_answer:
+                # Use answer template
+                template = kb.get("answer_template", "")
+                text = template.replace("{question}", current_card_question).replace("{answer}", current_card_answer)
+            else:
+                # Use question template
+                template = kb.get("question_template", "")
+                text = template.replace("{question}", current_card_question)
+
+            card_texts.append(text)
+
+        # Convert to JSON and inject
+        if card_texts:
+            texts_json = json.dumps(card_texts)
+            js_code = f"window.ankiCardTexts = {texts_json};"
+            self.web.page().runJavaScript(js_code)
+
+
+class OnboardingWidget(QWidget):
+    """Onboarding widget shown in the side panel"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.step_completed = False
+        self.setup_ui()
+
+    def set_icon_from_svg(self, label, svg_str, size=20, color=None):
+        """Helper to set SVG icon to a label"""
+        # Render at high resolution (4x scale) for crisp display on Retina/HighDPI
+        render_size = size * 4
+
+        svg_bytes = QByteArray(svg_str.encode())
+        renderer = QSvgRenderer(svg_bytes)
+        pixmap = QPixmap(render_size, render_size)
+        try:
+            pixmap.fill(Qt.GlobalColor.transparent)
+        except:
+            pixmap.fill(Qt.transparent)
+
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+
+        # Set scalable contents on label so it downscales the high-res pixmap
+        label.setPixmap(pixmap)
+        label.setScaledContents(True)
+
+    def setup_ui(self):
+        # Main outer layout - positions content at "optical center" (15% from top)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Add spacing at top (15% of typical height ~600px = 90px)
+        outer_layout.addSpacing(90)
+
+        # THE INVISIBLE COLUMN - Container with fixed width (380px)
+        container = QWidget()
+        container.setMaximumWidth(380)
+        container.setStyleSheet("background: transparent;")
+
+        # Inner layout for the container
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # HEADER SECTION - Title and Creator grouped close together
+        # Title
+        title = QLabel("OpenEvidence Add-On")
+        title.setStyleSheet("""
+            font-size: 26px;
+            font-weight: 700;
+            color: #FFFFFF;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0px 0px 8px 0px;
+        """)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+
+        # Creator name
+        creator = QLabel("Created by Luke Pettit")
+        creator.setStyleSheet("""
+            font-size: 14px;
+            color: #777777;
+            font-weight: 500;
+        """)
+        creator.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(creator)
+
+        # Gap after header (32px)
+        layout.addSpacing(32)
+
+        # CONTENT SECTION - Description text (LEFT-ALIGNED to match box edge)
+        description = QLabel("To enable this add-on, please support this project by giving us a free star on GitHub.")
+        description.setWordWrap(True)
+        description.setStyleSheet("""
+            font-size: 15px;
+            color: #BBBBBB;
+            font-weight: 400;
+            line-height: 1.5;
+            padding-left: 2px;
+        """)
+        description.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(description)
+
+        # Small gap before checkbox (20px)
+        layout.addSpacing(20)
+
+        # CHECKBOX ROW - custom widget using QPushButton for layout control
+        self.star_btn = QPushButton()
+        self.star_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.star_btn.setFixedHeight(54)
+        self.star_btn.setStyleSheet("""
+            QPushButton {
+                background: #2b2b2b;
+                border: 1px solid #444444;
+                border-radius: 8px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background: #3a3a3a;
+                border-color: #666666;
+            }
+        """)
+
+        # Layout for the button content
+        btn_layout = QHBoxLayout(self.star_btn)
+        btn_layout.setContentsMargins(16, 0, 16, 0)
+        btn_layout.setSpacing(12)
+
+        # 1. Checkbox Icon
+        self.checkbox_label = QLabel()
+        self.checkbox_label.setFixedSize(20, 20)
+        self.checkbox_label.setStyleSheet("background: transparent; border: none;")
+        self.checkbox_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        # SVG for empty checkbox
+        empty_checkbox_svg = """<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="2" width="20" height="20" rx="5" stroke="#FFFFFF" stroke-width="2"/>
+        </svg>"""
+        self.set_icon_from_svg(self.checkbox_label, empty_checkbox_svg)
+        btn_layout.addWidget(self.checkbox_label)
+
+        # 2. Text
+        self.star_text = QLabel("Star on GitHub")
+        self.star_text.setStyleSheet("color: #FFFFFF; font-size: 15px; font-weight: 500; border: none; background: transparent;")
+        self.star_text.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        btn_layout.addWidget(self.star_text)
+
+        # 3. Spacer to push arrow to the right
+        btn_layout.addStretch()
+
+        # 4. Arrow Icon
+        self.arrow_label = QLabel()
+        self.arrow_label.setFixedSize(20, 20)
+        self.arrow_label.setStyleSheet("background: transparent; border: none;")
+        self.arrow_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        # SVG for external link arrow
+        arrow_svg = """<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="7" y1="17" x2="17" y2="7"></line>
+            <polyline points="7 7 17 7 17 17"></polyline>
+        </svg>"""
+        self.set_icon_from_svg(self.arrow_label, arrow_svg)
+        btn_layout.addWidget(self.arrow_label)
+
+        self.star_btn.clicked.connect(self.on_star_clicked)
+        layout.addWidget(self.star_btn)
+
+        # Gap before Next button (16px)
+        layout.addSpacing(16)
+
+        # BIG NEXT BUTTON - Grayed out "locked" state
+        self.continue_btn = QPushButton("Next →")
+        self.continue_btn.setCursor(QCursor(Qt.CursorShape.ForbiddenCursor))
+        self.continue_btn.setEnabled(False)
+        self.continue_btn.setStyleSheet("""
+            QPushButton {
+                background: #333333;
+                color: #666666;
+                border: 1px solid #444444;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 16px;
+            }
+        """)
+        self.continue_btn.clicked.connect(self.on_continue_clicked)
+        layout.addWidget(self.continue_btn)
+
+        # Add the container to the outer layout (horizontally centered)
+        outer_layout.addWidget(container, 0, Qt.AlignmentFlag.AlignHCenter)
+        outer_layout.addStretch(1)
+
+    def on_star_clicked(self):
+        if not self.step_completed:
+            webbrowser.open("https://github.com/Lukeyp43/Anki-OpenEvidence-Add-On")
+
+            # Disable button to prevent multiple clicks, but keep it looking active
+            self.star_btn.setEnabled(False)
+
+            # Wait 4 seconds before showing success state
+            QTimer.singleShot(4000, self.finalize_onboarding_step)
+
+    def finalize_onboarding_step(self):
+        if not self.step_completed:
+            self.step_completed = True
+
+            # Update Star Button to checked state (Dark Gray background, Checkbox turns blue with checkmark)
+            # Re-enable button but cursor changes
+            self.star_btn.setEnabled(True)
+            self.star_btn.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+            # Remove hover effect by setting same background
+            self.star_btn.setStyleSheet("""
+                QPushButton {
+                    background: #2b2b2b;
+                    border: 1px solid #444444;
+                    border-radius: 8px;
+                    text-align: left;
+                }
+            """)
+
+            # Update icons/text for checked state
+
+            # 1. Checkbox becomes filled blue square with checkmark
+            filled_check_svg = """<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="2" width="20" height="20" rx="5" fill="#3498db"/>
+                <polyline points="16 9 10 15 7 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>"""
+            self.set_icon_from_svg(self.checkbox_label, filled_check_svg)
+
+            # Update Continue Button to UNLOCKED state (Bright Blue)
+            self.continue_btn.setEnabled(True)
+            self.continue_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            self.continue_btn.setStyleSheet("""
+                QPushButton {
+                    background: #3498db;
+                    color: #FFFFFF;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    padding: 16px;
+                }
+                QPushButton:hover {
+                    background: #5dade2;
+                }
+            """)
+
+    def on_continue_clicked(self):
+        # Save config
+        config = mw.addonManager.getConfig(__name__) or {}
+        config["onboarding_completed"] = True
+        mw.addonManager.writeConfig(__name__, config)
+
+        # Replace widget with actual OpenEvidence panel
+        from . import dock_widget
+        if dock_widget:
+            panel = OpenEvidencePanel()
+            dock_widget.setWidget(panel)

@@ -1,6 +1,14 @@
 {
     "width": 500,
     "height_percentage": 0.9,
-    "onboarding_completed": false
+    "onboarding_completed": false,
+    "keybindings": [
+        {
+            "name": "Default",
+            "keys": ["Shift", "Control/Meta"],
+            "question_template": "Can you explain this to me:\nQuestion:\n{question}",
+            "answer_template": "Can you explain this to me:\nQuestion:\n{question}\n\nAnswer:\n{answer}"
+        }
+    ]
 }
 
