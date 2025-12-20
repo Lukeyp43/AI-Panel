@@ -141,15 +141,14 @@ class SettingsEditorView(QWidget):
         q_footer_layout.setSpacing(8)
         q_footer_layout.setContentsMargins(0, 4, 0, 0)
 
-        q_help = QLabel("Only {front} is available.")
+        q_help = ElidedLabel("Only {front} is available.")
         q_help.setStyleSheet("color: #6b7280; font-size: 11px;")
-        q_footer_layout.addWidget(q_help)
-
-        q_footer_layout.addStretch()
+        q_footer_layout.addWidget(q_help, 1)  # Stretch factor 1 to absorb flexible space
 
         q_front_chip = QPushButton("+ {front}")
         q_front_chip.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         q_front_chip.setFixedHeight(24)
+        q_front_chip.setMinimumWidth(75)
         q_front_chip.setStyleSheet("""
             QPushButton {
                 background: #374151;
@@ -208,15 +207,14 @@ class SettingsEditorView(QWidget):
         a_footer_layout.setSpacing(8)
         a_footer_layout.setContentsMargins(0, 4, 0, 0)
 
-        a_help = QLabel("Both {front} and {back} are available.")
+        a_help = ElidedLabel("Both {front} and {back} are available.")
         a_help.setStyleSheet("color: #6b7280; font-size: 11px;")
-        a_footer_layout.addWidget(a_help)
-
-        a_footer_layout.addStretch()
+        a_footer_layout.addWidget(a_help, 1)  # Stretch factor 1 to absorb flexible space
 
         a_front_chip = QPushButton("+ {front}")
         a_front_chip.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         a_front_chip.setFixedHeight(24)
+        a_front_chip.setMinimumWidth(75)
         a_front_chip.setStyleSheet("""
             QPushButton {
                 background: #374151;
@@ -237,6 +235,7 @@ class SettingsEditorView(QWidget):
         a_back_chip = QPushButton("+ {back}")
         a_back_chip.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         a_back_chip.setFixedHeight(24)
+        a_back_chip.setMinimumWidth(75)
         a_back_chip.setStyleSheet("""
             QPushButton {
                 background: #374151;
