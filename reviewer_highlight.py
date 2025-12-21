@@ -19,6 +19,20 @@ HIGHLIGHT_BUBBLE_JS = """
     let bubble = null;
     let currentState = 'default'; // 'default' or 'input'
     let selectedText = '';
+    let cmdKeyHeld = false;
+
+    // Track Command/Meta key state
+    document.addEventListener('keydown', (e) => {
+        if (e.metaKey || e.key === 'Meta') {
+            cmdKeyHeld = true;
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (!e.metaKey && e.key === 'Meta') {
+            cmdKeyHeld = false;
+        }
+    });
 
     // Create the bubble element
     function createBubble() {
@@ -26,63 +40,66 @@ HIGHLIGHT_BUBBLE_JS = """
         div.id = 'anki-highlight-bubble';
         div.style.cssText = `
             position: absolute;
-            background: #1f2937;
-            border-radius: 6px;
-            padding: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            background: #1e1e1e;
+            border-radius: 8px;
+            border: 1px solid #4b5563;
+            padding: 0px 5px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
             z-index: 9999;
             display: none;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: 12px;
-            color: white;
-            gap: 4px;
+            color: #ffffff;
+            line-height: 1;
+            height: 24px;
         `;
         document.body.appendChild(div);
         return div;
     }
 
-    // Render default state with two buttons
+    // Render default state with two buttons and divider
     function renderDefaultState() {
         currentState = 'default';
         bubble.innerHTML = `
-            <div style="display: flex; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 2px; height: 100%; line-height: 1;">
                 <button id="add-to-chat-btn" style="
                     background: transparent;
                     border: none;
-                    color: white;
-                    padding: 6px 12px;
+                    color: #ffffff;
+                    padding: 0px 8px;
                     cursor: pointer;
                     border-radius: 4px;
                     font-size: 12px;
-                    display: flex;
+                    font-weight: 500;
+                    transition: all 0.15s ease;
+                    white-space: nowrap;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    height: 22px;
+                    line-height: 22px;
+                    display: inline-flex;
                     align-items: center;
-                    gap: 6px;
-                    transition: background 0.2s;
                 ">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    <span>Add to Chat</span>
+                    Add to Chat
                 </button>
+                <div style="width: 1px; height: 16px; background-color: #4b5563;"></div>
                 <button id="ask-question-btn" style="
                     background: transparent;
                     border: none;
-                    color: white;
-                    padding: 6px 12px;
+                    color: #ffffff;
+                    padding: 0px 8px;
                     cursor: pointer;
                     border-radius: 4px;
                     font-size: 12px;
-                    display: flex;
+                    font-weight: 500;
+                    transition: all 0.15s ease;
+                    white-space: nowrap;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    height: 22px;
+                    line-height: 22px;
+                    display: inline-flex;
                     align-items: center;
-                    gap: 6px;
-                    transition: background 0.2s;
                 ">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    <span>Ask Question</span>
+                    Ask Question
                 </button>
             </div>
         `;
@@ -92,17 +109,17 @@ HIGHLIGHT_BUBBLE_JS = """
         const askQuestionBtn = bubble.querySelector('#ask-question-btn');
 
         addToChatBtn.addEventListener('mouseenter', () => {
-            addToChatBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+            addToChatBtn.style.backgroundColor = '#374151';
         });
         addToChatBtn.addEventListener('mouseleave', () => {
-            addToChatBtn.style.background = 'transparent';
+            addToChatBtn.style.backgroundColor = 'transparent';
         });
 
         askQuestionBtn.addEventListener('mouseenter', () => {
-            askQuestionBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+            askQuestionBtn.style.backgroundColor = '#374151';
         });
         askQuestionBtn.addEventListener('mouseleave', () => {
-            askQuestionBtn.style.background = 'transparent';
+            askQuestionBtn.style.backgroundColor = 'transparent';
         });
 
         // Add click handlers
@@ -121,38 +138,41 @@ HIGHLIGHT_BUBBLE_JS = """
     function renderInputState() {
         currentState = 'input';
         bubble.innerHTML = `
-            <div style="display: flex; gap: 4px; align-items: center;">
+            <div style="display: flex; gap: 2px; align-items: center; height: 100%; line-height: 1;">
                 <input
                     type="text"
                     id="question-input"
                     placeholder="Ask a question..."
                     style="
-                        background: rgba(255, 255, 255, 0.1);
-                        border: 1px solid rgba(255, 255, 255, 0.2);
-                        border-radius: 4px;
-                        color: white;
-                        padding: 6px 10px;
+                        background: transparent;
+                        border: none;
+                        color: #ffffff;
+                        padding: 0px 8px;
                         font-size: 12px;
+                        font-weight: 500;
                         outline: none;
                         min-width: 200px;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        height: 22px;
+                        line-height: 22px;
                     "
                 />
                 <button id="submit-btn" style="
-                    background: rgba(59, 130, 246, 0.8);
+                    background: #3b82f6;
                     border: none;
-                    color: white;
-                    padding: 6px 10px;
+                    color: #ffffff;
+                    padding: 0px 8px;
                     cursor: pointer;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    display: flex;
+                    border-radius: 9999px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    display: inline-flex;
                     align-items: center;
-                    transition: background 0.2s;
+                    transition: all 0.15s ease;
+                    height: 22px;
+                    line-height: 22px;
                 ">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
+                    →
                 </button>
             </div>
         `;
@@ -173,10 +193,10 @@ HIGHLIGHT_BUBBLE_JS = """
 
         // Hover effect for submit button
         submitBtn.addEventListener('mouseenter', () => {
-            submitBtn.style.background = 'rgba(59, 130, 246, 1)';
+            submitBtn.style.backgroundColor = '#2563eb';
         });
         submitBtn.addEventListener('mouseleave', () => {
-            submitBtn.style.background = 'rgba(59, 130, 246, 0.8)';
+            submitBtn.style.backgroundColor = '#3b82f6';
         });
 
         // Click handler for submit button
@@ -207,28 +227,28 @@ HIGHLIGHT_BUBBLE_JS = """
         }
     }
 
-    // Position the bubble above the selection
+    // Position the bubble above the selection with 8px gap (doesn't overlap text)
     function positionBubble(rect) {
         const bubbleHeight = bubble.offsetHeight;
         const bubbleWidth = bubble.offsetWidth;
+        const gap = 8; // Gap above selection to prevent covering text
 
         // Calculate center of selection
         const centerX = rect.left + (rect.width / 2);
 
-        // Position bubble centered above selection with 8px gap
+        // Position bubble centered above selection with gap
         let left = centerX - (bubbleWidth / 2);
-        let top = rect.top - bubbleHeight - 8;
+        let top = rect.top - bubbleHeight - gap;
 
         // Keep bubble within viewport bounds
-        const padding = 10;
-        if (left < padding) left = padding;
-        if (left + bubbleWidth > window.innerWidth - padding) {
-            left = window.innerWidth - bubbleWidth - padding;
+        if (left < 0) left = 0;
+        if (left + bubbleWidth > window.innerWidth) {
+            left = window.innerWidth - bubbleWidth;
         }
 
         // If bubble would be above viewport, show it below instead
-        if (top < padding) {
-            top = rect.bottom + 8;
+        if (top < 0) {
+            top = rect.bottom + gap;
         }
 
         bubble.style.left = left + window.scrollX + 'px';
@@ -258,14 +278,15 @@ HIGHLIGHT_BUBBLE_JS = """
             const selection = window.getSelection();
             const text = selection.toString().trim();
 
-            if (text && text.length > 0) {
+            // Only show bubble if Command/Meta key is held AND text is selected
+            if (text && text.length > 0 && cmdKeyHeld) {
                 // Get selection range and position
                 const range = selection.getRangeAt(0);
                 const rect = range.getBoundingClientRect();
 
                 showBubble(rect, text);
             } else {
-                // No selection, hide bubble if clicking outside
+                // No selection or no cmd key, hide bubble if clicking outside
                 if (!bubble.contains(e.target)) {
                     hideBubble();
                 }
