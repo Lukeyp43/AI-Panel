@@ -689,7 +689,10 @@ class SettingsListView(QWidget):
         card_layout.addLayout(keycaps_layout)
 
         # Middle: Template preview (uses ElidedLabel for responsive text)
+        # If front template is empty, use back template for preview
         template = kb.get("question_template", "")
+        if not template or not template.strip():
+            template = kb.get("answer_template", "")
         preview = template.replace("\n", " ")
         preview_label = ElidedLabel(preview)
         preview_label.setStyleSheet("""
