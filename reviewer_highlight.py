@@ -56,7 +56,7 @@ HIGHLIGHT_BUBBLE_JS = """
             font-size: 12px;
             color: #ffffff;
             line-height: 1;
-            height: 24px;
+            min-height: 24px;
         `;
         document.body.appendChild(div);
         return div;
@@ -157,54 +157,100 @@ HIGHLIGHT_BUBBLE_JS = """
     function renderInputState() {
         currentState = 'input';
         bubble.innerHTML = `
-            <div style="display: flex; gap: 2px; align-items: center; height: 100%; line-height: 1;">
-                <input
-                    type="text"
+            <div style="
+                display: flex;
+                flex-direction: column;
+                padding: 1px;
+                gap: 0px;
+                min-width: 280px;
+                max-width: 380px;
+                position: relative;
+            ">
+                <!-- Top row with textarea and X button -->
+                <div style="display: flex; align-items: flex-start; gap: 1px; padding: 0;">
+                <textarea
                     id="question-input"
                     placeholder="Ask a question..."
+                    rows="1"
                     style="
                         background: transparent;
                         border: none;
                         color: #ffffff;
-                        padding: 0px 8px;
+                        padding: 0px 2px;
                         font-size: 12px;
                         font-weight: 500;
                         outline: none;
-                        min-width: 200px;
+                        flex: 1;
                         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        height: 22px;
-                        line-height: 22px;
+                        resize: none;
+                        overflow-y: hidden;
+                        min-height: 16px;
+                        max-height: 80px;
+                        line-height: 1.2;
+                        word-wrap: break-word;
                     "
-                />
+                ></textarea>
+                <button id="close-btn" style="
+                    background: transparent;
+                    border: none;
+                    color: #9ca3af;
+                    cursor: pointer;
+                    font-size: 16px;       /* Increased from 12px */
+                    padding: 0;
+                    width: 20px;           /* Increased from 14px */
+                    height: 20px;          /* Increased from 14px */
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.15s ease;
+                    line-height: 1;
+                    flex-shrink: 0;
+                    margin-top: 2px;       /* Adjusted slightly for new size */
+                    margin-right: 0px;
+                ">✕</button>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: -2px;">
                 <button id="submit-btn" style="
                     background: #3b82f6;
                     border: none;
                     color: #ffffff;
-                    padding: 0px 8px;
+                    padding: 0;
                     cursor: pointer;
-                    border-radius: 9999px;
-                    font-size: 14px;
+                    border-radius: 50%;
+                    font-size: 14px;       /* Increased from 9px */
                     font-weight: 600;
-                    display: inline-flex;
+                    display: flex;
                     align-items: center;
+                    justify-content: center;
                     transition: all 0.15s ease;
-                    height: 22px;
-                    line-height: 22px;
-                ">
-                    →
-                </button>
+                    width: 20px;           /* Increased from 14px */
+                    height: 20px;          /* Increased from 14px */
+                    flex-shrink: 0;
+                    margin-right: 0px;
+                ">↑</button>
             </div>
         `;
 
         const input = bubble.querySelector('#question-input');
         const submitBtn = bubble.querySelector('#submit-btn');
+        const closeBtn = bubble.querySelector('#close-btn');
+
+        // Auto-resize textarea as user types
+        function autoResize() {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+        }
 
         // Focus the input
         setTimeout(() => input.focus(), 0);
 
-        // Submit on Enter key
+        // Auto-resize on input
+        input.addEventListener('input', autoResize);
+
+        // Submit on Enter key (without Shift)
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmitQuestion();
             }
@@ -216,6 +262,26 @@ HIGHLIGHT_BUBBLE_JS = """
         });
         submitBtn.addEventListener('mouseleave', () => {
             submitBtn.style.backgroundColor = '#3b82f6';
+        });
+
+        // Hover effect for close button
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.color = '#ffffff';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.color = '#9ca3af';
+        });
+
+        // Close button handler
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hideBubble();
+        });
+        closeBtn.addEventListener('mouseup', (e) => {
+            e.stopPropagation();
+        });
+        closeBtn.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
         });
 
         // Click handler for submit button
