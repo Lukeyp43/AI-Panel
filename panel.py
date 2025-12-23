@@ -40,7 +40,7 @@ except ImportError:
             QWebEnginePage = None
             QWebEngineProfile = None
 
-from .settings import SettingsListView, SettingsEditorView
+from .settings import SettingsHomeView, SettingsListView, SettingsEditorView
 import os
 
 
@@ -444,8 +444,8 @@ class OpenEvidencePanel(QWidget):
         # so it's ready instantly when the user clicks the book icon
         self.web.load(QUrl("https://www.openevidence.com/"))
 
-        # Create settings view
-        self.settings_view = SettingsListView(self)
+        # Create settings home view (main settings hub)
+        self.settings_view = SettingsHomeView(self)
 
         # Add views to stacked widget
         self.stacked_widget.addWidget(self.web_container)  # Index 0
@@ -536,30 +536,33 @@ class OpenEvidencePanel(QWidget):
             # We're in a settings view, check which one
             current_widget = self.stacked_widget.widget(1)
             # Import here to avoid circular import at module level
-            from .settings import SettingsEditorView
+            from .settings import SettingsEditorView, SettingsListView, SettingsHomeView
 
             if isinstance(current_widget, SettingsEditorView):
-                # In editor view, discard changes and go back to list view
+                # In editor view, discard changes and go back to templates list view
                 if hasattr(current_widget, 'discard_and_go_back'):
                     current_widget.discard_and_go_back()
                 else:
-                    self.show_list_view()
+                    self.show_templates_view()
+            elif isinstance(current_widget, SettingsListView):
+                # In templates list view, go back to settings home
+                self.show_home_view()
+            elif isinstance(current_widget, SettingsHomeView):
+                # In settings home, go back to web view
+                self.show_web_view()
             else:
-                # In list view, go back to web view
+                # Default: go to web view
                 self.show_web_view()
         else:
             # Default: go to web view
             self.show_web_view()
 
     def toggle_settings_view(self):
-        """Toggle between web view and settings view"""
+        """Toggle between web view and settings home view"""
         current = self.stacked_widget.currentIndex()
         if current == 0:
-            # Switch to settings
-            # Reload settings in case they changed
-            self.settings_view.load_keybindings()
-            self.stacked_widget.setCurrentIndex(1)
-            self._update_title_bar(True)
+            # Switch to settings home
+            self.show_home_view()
         else:
             # Switch back to web
             self.show_web_view()
@@ -569,9 +572,34 @@ class OpenEvidencePanel(QWidget):
         self.stacked_widget.setCurrentIndex(0)
         self._update_title_bar(False)
 
-    def show_list_view(self):
-        """Show the settings list view"""
-        # Get current widget at index 1 (could be editor view or old list view)
+    def show_home_view(self):
+        """Show the settings home view"""
+        # Get current widget at index 1
+        current_widget = self.stacked_widget.widget(1)
+
+        # Import here to avoid circular import at module level
+        from .settings import SettingsHomeView
+
+        # If it's already a SettingsHomeView, just show it
+        if current_widget and isinstance(current_widget, SettingsHomeView):
+            self.stacked_widget.setCurrentIndex(1)
+            self._update_title_bar(True)
+            return
+
+        # Otherwise, remove whatever is there and create new home view
+        if current_widget:
+            self.stacked_widget.removeWidget(current_widget)
+            current_widget.deleteLater()
+
+        # Create new home view
+        self.settings_view = SettingsHomeView(self)
+        self.stacked_widget.addWidget(self.settings_view)
+        self.stacked_widget.setCurrentIndex(1)
+        self._update_title_bar(True)
+
+    def show_templates_view(self):
+        """Show the templates list view"""
+        # Get current widget at index 1
         current_widget = self.stacked_widget.widget(1)
 
         # Import here to avoid circular import at module level
@@ -584,16 +612,20 @@ class OpenEvidencePanel(QWidget):
             self._update_title_bar(True)
             return
 
-        # Otherwise, remove whatever is there (likely SettingsEditorView) and create new list view
+        # Otherwise, remove whatever is there and create new templates list view
         if current_widget:
             self.stacked_widget.removeWidget(current_widget)
             current_widget.deleteLater()
 
-        # Create new list view
+        # Create new templates list view
         self.settings_view = SettingsListView(self)
         self.stacked_widget.addWidget(self.settings_view)
         self.stacked_widget.setCurrentIndex(1)
         self._update_title_bar(True)
+
+    def show_list_view(self):
+        """Show the settings list view (alias for show_templates_view for backward compatibility)"""
+        self.show_templates_view()
 
     def show_editor_view(self, keybinding, index):
         """Show the settings editor view"""

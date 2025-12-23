@@ -18,6 +18,10 @@ zip -r ../openevidence_panel.ankiaddon \
     __init__.py \
     panel.py \
     settings.py \
+    settings_utils.py \
+    settings_home.py \
+    settings_editor.py \
+    settings_list.py \
     utils.py \
     reviewer_highlight.py \
     manifest.json \
