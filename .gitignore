@@ -16,6 +16,7 @@ build/
 
 # Anki local files
 meta.json
+config.json
 
 # WebEngine cache and sensitive data
 webengine_data/
