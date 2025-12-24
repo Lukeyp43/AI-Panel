@@ -20,6 +20,7 @@ class KeyRecorderMixin:
         """Initialize key recorder state. Call this in __init__"""
         self.recording_keys = False
         self.pressed_keys = []
+        self.recording_timer = None  # Timer to auto-stop recording
 
     def start_recording(self):
         """Start recording keyboard shortcuts"""
@@ -34,6 +35,11 @@ class KeyRecorderMixin:
 
         self.recording_keys = False
         self.releaseKeyboard()
+
+        # Cancel any pending timer
+        if self.recording_timer is not None:
+            self.recording_timer.stop()
+            self.recording_timer = None
 
         # Save the recorded keys
         if hasattr(self, '_on_keys_recorded') and self.pressed_keys:
@@ -63,36 +69,55 @@ class KeyRecorderMixin:
                     Qt.Key.Key_Alt if hasattr(Qt.Key, 'Key_Alt') else Qt.Key_Alt: "Alt",
                 }
 
-            # Check if this is a valid key press (not just a modifier being held)
-            is_valid_key = key in key_map or (event.text() and event.text().isprintable())
+            # Determine the key name
+            key_name = None
+
+            # Check if it's a modifier key
+            if key in key_map:
+                key_name = key_map[key]
+            # Check if it's a letter key (A-Z)
+            elif key >= (Qt.Key.Key_A if hasattr(Qt.Key, 'Key_A') else Qt.Key_A) and \
+                 key <= (Qt.Key.Key_Z if hasattr(Qt.Key, 'Key_Z') else Qt.Key_Z):
+                # Convert Qt key code to letter (Qt.Key_A = 65 = 'A')
+                key_name = chr(key).upper()
+            # Check if it's a number key (0-9)
+            elif key >= (Qt.Key.Key_0 if hasattr(Qt.Key, 'Key_0') else Qt.Key_0) and \
+                 key <= (Qt.Key.Key_9 if hasattr(Qt.Key, 'Key_9') else Qt.Key_9):
+                key_name = chr(key)
+            # Fall back to event.text() for other printable characters
+            elif event.text() and event.text().isprintable():
+                key_name = event.text().upper()
 
             # Maximum of 3 keys allowed - show error if trying to add more
-            if len(self.pressed_keys) >= 3 and is_valid_key:
+            if key_name and len(self.pressed_keys) >= 3:
                 tooltip("Maximum of 3 keys allowed for shortcuts")
                 return
 
             # Add key to list if not already present (preserves order)
-            if key in key_map:
-                key_name = key_map[key]
-                if key_name not in self.pressed_keys:
-                    self.pressed_keys.append(key_name)
-            elif event.text() and event.text().isprintable():
-                key_name = event.text().upper()
-                if key_name not in self.pressed_keys:
-                    self.pressed_keys.append(key_name)
+            if key_name and key_name not in self.pressed_keys:
+                self.pressed_keys.append(key_name)
 
             # Update display if method exists
             if hasattr(self, '_update_recording_display'):
                 self._update_recording_display(self.pressed_keys)
 
+            # Cancel any existing timer before creating a new one
+            if self.recording_timer is not None:
+                self.recording_timer.stop()
+                self.recording_timer = None
+
             # Auto-stop after 500ms, or immediately if we hit 3 keys
             if len(self.pressed_keys) > 0:
+                self.recording_timer = QTimer(self)
+                self.recording_timer.setSingleShot(True)
+                self.recording_timer.timeout.connect(self.stop_recording)
+
                 if len(self.pressed_keys) >= 3:
                     # Stop immediately when we reach 3 keys
-                    QTimer.singleShot(100, self.stop_recording)
+                    self.recording_timer.start(100)
                 else:
                     # Otherwise wait 500ms for more keys
-                    QTimer.singleShot(500, self.stop_recording)
+                    self.recording_timer.start(500)
         else:
             # Pass event to parent if not recording
             super().keyPressEvent(event)

@@ -16,9 +16,10 @@ except ImportError:
     from PyQt5.QtGui import QCursor
 
 from .settings_utils import ElidedLabel
+from .key_recorder import KeyRecorderMixin
 
 
-class SettingsEditorView(QWidget):
+class SettingsEditorView(KeyRecorderMixin, QWidget):
     """View B: Editor for a single keybinding - drill-down view"""
     def __init__(self, parent=None, keybinding=None, index=None):
         super().__init__(parent)
@@ -30,8 +31,10 @@ class SettingsEditorView(QWidget):
             "question_template": "Can you explain this to me:\nQuestion:\n{front}",
             "answer_template": "Can you explain this to me:\nQuestion:\n{front}\n\nAnswer:\n{back}"
         }
-        self.recording_keys = False
-        self.pressed_keys = []  # Use list to preserve key press order
+
+        # Initialize key recorder
+        self.setup_key_recorder()
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -353,72 +356,26 @@ class SettingsEditorView(QWidget):
 
     def start_recording(self):
         """Start recording key presses"""
-        self.recording_keys = True
-        self.pressed_keys = []  # Use list to preserve key press order
         self._update_key_display()
-        self.setFocus()
+        # Call mixin's start_recording
+        super().start_recording()
 
-    def stop_recording(self):
-        """Stop recording and save keys"""
-        self.recording_keys = False
-        if self.pressed_keys:
+    def _update_recording_display(self, keys):
+        """Called by KeyRecorderMixin during recording to update the display"""
+        # Update the display to show current keys being recorded
+        from .utils import format_keys_verbose
+        if keys:
+            self.key_display.setText(format_keys_verbose(keys))
+        else:
+            self.key_display.setText("Press any key combination...")
+
+    def _on_keys_recorded(self, keys):
+        """Called by KeyRecorderMixin when recording is complete"""
+        if keys:
             # Keep the original order (don't sort)
-            self.keybinding["keys"] = self.pressed_keys.copy()
+            self.keybinding["keys"] = keys
         self._update_key_display()
         self._on_change()  # Check if changes were made
-
-    def keyPressEvent(self, event):
-        """Capture key presses when recording (max 3 keys)"""
-        if self.recording_keys:
-            key = event.key()
-
-            # On macOS, Qt has a quirk where Control and Meta are swapped:
-            # - Qt.Key_Control is actually triggered by the Cmd key (⌘)
-            # - Qt.Key_Meta is actually triggered by the Control key (⌃)
-            # So we need to swap them in our mapping to match user expectations
-            if sys.platform == "darwin":
-                key_map = {
-                    Qt.Key.Key_Control if hasattr(Qt.Key, 'Key_Control') else Qt.Key_Control: "Meta",  # Cmd key
-                    Qt.Key.Key_Meta if hasattr(Qt.Key, 'Key_Meta') else Qt.Key_Meta: "Control",  # Control key
-                    Qt.Key.Key_Shift if hasattr(Qt.Key, 'Key_Shift') else Qt.Key_Shift: "Shift",
-                    Qt.Key.Key_Alt if hasattr(Qt.Key, 'Key_Alt') else Qt.Key_Alt: "Alt",
-                }
-            else:
-                key_map = {
-                    Qt.Key.Key_Control if hasattr(Qt.Key, 'Key_Control') else Qt.Key_Control: "Control/Meta",
-                    Qt.Key.Key_Meta if hasattr(Qt.Key, 'Key_Meta') else Qt.Key_Meta: "Control/Meta",
-                    Qt.Key.Key_Shift if hasattr(Qt.Key, 'Key_Shift') else Qt.Key_Shift: "Shift",
-                    Qt.Key.Key_Alt if hasattr(Qt.Key, 'Key_Alt') else Qt.Key_Alt: "Alt",
-                }
-
-            # Check if this is a valid key press (not just a modifier being held)
-            is_valid_key = key in key_map or (event.text() and event.text().isprintable())
-
-            # Maximum of 3 keys allowed - show error if trying to add more
-            if len(self.pressed_keys) >= 3 and is_valid_key:
-                tooltip("Maximum of 3 keys allowed for shortcuts")
-                return
-
-            # Add key to list if not already present (preserves order)
-            if key in key_map:
-                key_name = key_map[key]
-                if key_name not in self.pressed_keys:
-                    self.pressed_keys.append(key_name)
-            elif event.text() and event.text().isprintable():
-                key_name = event.text().upper()
-                if key_name not in self.pressed_keys:
-                    self.pressed_keys.append(key_name)
-
-            # Auto-stop after 500ms, or immediately if we hit 3 keys
-            if len(self.pressed_keys) > 0:
-                if len(self.pressed_keys) >= 3:
-                    # Stop immediately when we reach 3 keys
-                    QTimer.singleShot(100, self.stop_recording)
-                else:
-                    # Otherwise wait 500ms for more keys
-                    QTimer.singleShot(500, self.stop_recording)
-        else:
-            super().keyPressEvent(event)
 
     def discard_and_go_back(self):
         """Discard changes and return to list view without saving"""

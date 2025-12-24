@@ -22,31 +22,98 @@ HIGHLIGHT_BUBBLE_JS = """
     let cmdKeyHeld = false;
     let contextText = ''; // Store context text for the pill
 
-    // Helper function to check if pressed keys match config
+    // Completely rewritten key matching - more aggressive approach
     function checkShortcut(e, configKeys) {
         if (!configKeys || configKeys.length === 0) return false;
 
-        const pressedModifiers = {
-            'Meta': e.metaKey,
-            'Control': e.ctrlKey,
-            'Shift': e.shiftKey,
-            'Alt': e.altKey
-        };
+        var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        var pressedKeys = {};
 
-        // Check all modifiers match
-        for (const modifier of ['Meta', 'Control', 'Shift', 'Alt']) {
-            const shouldBePressed = configKeys.includes(modifier);
-            const isPressed = pressedModifiers[modifier];
-            if (shouldBePressed !== isPressed) return false;
+        // Build pressed keys map
+        if (e.shiftKey) pressedKeys['Shift'] = true;
+        if (e.altKey) pressedKeys['Alt'] = true;
+        
+        if (isMac) {
+            if (e.ctrlKey) pressedKeys['Control'] = true;
+            if (e.metaKey) pressedKeys['Meta'] = true;
+        } else {
+            if (e.ctrlKey || e.metaKey) pressedKeys['Control/Meta'] = true;
         }
 
-        // Check regular key
-        const regularKey = configKeys.find(k => !['Meta', 'Control', 'Shift', 'Alt'].includes(k));
-        if (regularKey && e.key.toUpperCase() !== regularKey.toUpperCase()) {
-            return false;
+        // Get the regular key - try multiple methods for reliability
+        // On macOS, Control+T might give e.key as "Tab" (browser shortcut) but e.code as "KeyT"
+        var regularKey = null;
+        
+        // First try e.key if it's a single character
+        if (e.key && e.key.length === 1 && /^[A-Za-z0-9]$/.test(e.key)) {
+            regularKey = e.key.toUpperCase();
+        } 
+        // Fallback to e.code for more reliable detection (especially for Control combinations)
+        else if (e.code) {
+            // Match patterns like "KeyT", "KeyA", "Digit1", etc.
+            var codeMatch = e.code.match(/^(Key|Digit)([A-Z0-9])$/);
+            if (codeMatch) {
+                regularKey = codeMatch[2];
+            }
         }
 
-        return true;
+        if (regularKey) {
+            pressedKeys[regularKey] = true;
+        }
+
+        // Check if all required keys are present
+        for (var i = 0; i < configKeys.length; i++) {
+            if (!pressedKeys[configKeys[i]]) {
+                return false;
+            }
+        }
+
+        // Verify exact count match
+        return Object.keys(pressedKeys).length === configKeys.length;
+    }
+
+    // Handle shortcut actions
+    function handleAskQuestion(e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();  // More aggressive than stopPropagation
+        
+        const selection = window.getSelection();
+        const text = selection.toString().trim();
+        
+        if (text && text.length > 0) {
+            selectedText = text;
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            bubble.style.display = 'block';
+            renderInputState();
+            setTimeout(() => positionBubble(rect), 0);
+        } else if (currentState === 'default' || bubble.style.display === 'none') {
+            selectedText = '';
+            const centerRect = {
+                left: window.innerWidth / 2,
+                right: window.innerWidth / 2,
+                top: window.innerHeight / 3,
+                bottom: window.innerHeight / 3,
+                width: 0,
+                height: 0
+            };
+            bubble.style.display = 'block';
+            renderInputState();
+            setTimeout(() => positionBubble(centerRect), 0);
+        }
+    }
+
+    function handleAddToChatShortcut(e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();  // More aggressive than stopPropagation
+        
+        const selection = window.getSelection();
+        const text = selection.toString().trim();
+        
+        if (text && text.length > 0) {
+            selectedText = text;
+            handleAddToChat();  // Call the actual handler function
+        }
     }
 
     // Track Command/Meta key state
@@ -54,55 +121,60 @@ HIGHLIGHT_BUBBLE_JS = """
         if (e.metaKey || e.key === 'Meta' || e.key === 'Command') {
             cmdKeyHeld = true;
         }
+    }, true);
 
+    // Main keyboard shortcut handler - completely rewritten
+    // Use capture phase with highest priority on window (not document)
+    window.addEventListener('keydown', function(e) {
         // Get shortcuts from config
-        const askQuestionKeys = window.quickActionsConfig?.askQuestion?.keys || ['Meta', 'R'];
-        const addToChatKeys = window.quickActionsConfig?.addToChat?.keys || ['Meta', 'F'];
+        var askQuestionKeys = (window.quickActionsConfig && window.quickActionsConfig.askQuestion && window.quickActionsConfig.askQuestion.keys) || ['Meta', 'R'];
+        var addToChatKeys = (window.quickActionsConfig && window.quickActionsConfig.addToChat && window.quickActionsConfig.addToChat.keys) || ['Meta', 'F'];
 
-        // Ask Question shortcut
-        if (checkShortcut(e, askQuestionKeys)) {
-            e.preventDefault();
-            const selection = window.getSelection();
-            const text = selection.toString().trim();
-            if (text && text.length > 0) {
-                // If text is selected, show bubble with context
-                selectedText = text;
-                const range = selection.getRangeAt(0);
-                const rect = range.getBoundingClientRect();
-
-                // Show bubble and immediately switch to input state
-                bubble.style.display = 'block';
-                renderInputState();
-                setTimeout(() => positionBubble(rect), 0);
-            } else if (currentState === 'default' || bubble.style.display === 'none') {
-                // No text selected, but show bubble anyway in input mode
-                selectedText = '';
-                // Position in center of viewport
-                const centerRect = {
-                    left: window.innerWidth / 2,
-                    right: window.innerWidth / 2,
-                    top: window.innerHeight / 3,
-                    bottom: window.innerHeight / 3,
-                    width: 0,
-                    height: 0
-                };
-                bubble.style.display = 'block';
-                renderInputState();
-                setTimeout(() => positionBubble(centerRect), 0);
-            }
-        }
-
-        // Add to Chat shortcut
-        if (checkShortcut(e, addToChatKeys)) {
-            const selection = window.getSelection();
-            const text = selection.toString().trim();
-            if (text && text.length > 0) {
+        // Early check: if Control key is pressed and it's part of our shortcuts, prevent default immediately
+        var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        var hasControl = isMac ? e.ctrlKey : (e.ctrlKey || e.metaKey);
+        
+        if (hasControl) {
+            // Check if this Control combination matches any of our shortcuts
+            var askHasControl = askQuestionKeys.indexOf('Control') !== -1;
+            var chatHasControl = addToChatKeys.indexOf('Control') !== -1;
+            
+            if (askHasControl || chatHasControl) {
+                // Prevent default early for Control combinations to stop browser shortcuts
                 e.preventDefault();
-                selectedText = text;
-                handleAddToChat();
             }
         }
-    });
+
+        // Debug logging
+        console.log('Quick Actions keydown:', {
+            key: e.key,
+            code: e.code,
+            ctrlKey: e.ctrlKey,
+            metaKey: e.metaKey,
+            shiftKey: e.shiftKey,
+            altKey: e.altKey,
+            askQuestionKeys: askQuestionKeys,
+            addToChatKeys: addToChatKeys,
+            checkResult: {
+                ask: checkShortcut(e, askQuestionKeys),
+                chat: checkShortcut(e, addToChatKeys)
+            }
+        });
+
+        // Check Ask Question shortcut
+        if (checkShortcut(e, askQuestionKeys)) {
+            console.log('Ask Question match!');
+            handleAskQuestion(e);
+            return false;  // Return false as additional prevention
+        }
+
+        // Check Add to Chat shortcut
+        if (checkShortcut(e, addToChatKeys)) {
+            console.log('Add to Chat match!');
+            handleAddToChatShortcut(e);
+            return false;  // Return false as additional prevention
+        }
+    }, true);  // Capture phase - intercept before anyone else
 
     document.addEventListener('keyup', (e) => {
         if (e.key === 'Meta' || e.key === 'Command') {
