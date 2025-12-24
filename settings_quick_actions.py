@@ -15,14 +15,18 @@ except ImportError:
     from PyQt5.QtCore import Qt, QTimer
     from PyQt5.QtGui import QCursor
 
+from .key_recorder import KeyRecorderMixin
 
-class QuickActionsSettingsView(QWidget):
+
+class QuickActionsSettingsView(KeyRecorderMixin, QWidget):
     """View for configuring quick action keyboard shortcuts"""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_panel = parent
         self.recording_target = None  # 'add_to_chat' or 'ask_question'
-        self.pressed_keys = []
+
+        # Initialize key recorder
+        self.setup_key_recorder()
 
         # Load current shortcuts from config
         config = mw.addonManager.getConfig(__name__)
@@ -129,28 +133,30 @@ class QuickActionsSettingsView(QWidget):
 
     def _update_shortcut_display(self, button, keys):
         """Update a shortcut display button with current keys"""
+        from .utils import format_keys_verbose
+
         if self.recording_target:
             # During recording
             if keys:
-                display_text = " + ".join(keys)
+                display_text = format_keys_verbose(keys)
                 button.setText(display_text)
                 button.setStyleSheet("""
                     QPushButton {
-                        background: #3b82f6;
-                        color: white;
+                        background: #2c2c2c;
+                        color: #3b82f6;
                         border: 2px solid #3b82f6;
                         border-radius: 8px;
                         font-size: 14px;
-                        font-weight: 600;
+                        font-weight: 500;
                     }
                 """)
             else:
-                button.setText("Press keys...")
+                button.setText("Press any key combination...")
                 button.setStyleSheet("""
                     QPushButton {
                         background: #2c2c2c;
-                        color: #9ca3af;
-                        border: 2px dashed #3b82f6;
+                        color: #3b82f6;
+                        border: 2px solid #3b82f6;
                         border-radius: 8px;
                         font-size: 14px;
                         font-weight: 500;
@@ -159,10 +165,10 @@ class QuickActionsSettingsView(QWidget):
         else:
             # Normal state
             if keys:
-                display_text = " + ".join(keys)
+                display_text = format_keys_verbose(keys)
                 button.setText(display_text)
             else:
-                button.setText("Click to set shortcut")
+                button.setText("Click to record shortcut")
 
             button.setStyleSheet("""
                 QPushButton {
@@ -182,70 +188,33 @@ class QuickActionsSettingsView(QWidget):
     def start_recording(self, target):
         """Start recording keys for a specific shortcut"""
         self.recording_target = target
-        self.pressed_keys = []
 
-        # Update display
+        # Update display to show recording state
         if target == 'add_to_chat':
             self._update_shortcut_display(self.add_to_chat_display, [])
         else:
             self._update_shortcut_display(self.ask_question_display, [])
 
-        # Grab keyboard focus
-        self.grabKeyboard()
+        # Start the key recorder from mixin
+        super().start_recording()
 
-    def keyPressEvent(self, event):
-        """Handle key press during recording"""
-        if not self.recording_target:
-            return super().keyPressEvent(event)
-
-        # Map Qt keys to config format
-        key_map = {
-            Qt.Key.Key_Control if hasattr(Qt.Key, 'Key_Control') else Qt.Key_Control: "Control",
-            Qt.Key.Key_Shift if hasattr(Qt.Key, 'Key_Shift') else Qt.Key_Shift: "Shift",
-            Qt.Key.Key_Alt if hasattr(Qt.Key, 'Key_Alt') else Qt.Key_Alt: "Alt",
-            Qt.Key.Key_Meta if hasattr(Qt.Key, 'Key_Meta') else Qt.Key_Meta: "Meta",
-        }
-
-        key = event.key()
-
-        # Check for modifier keys
-        if key in key_map:
-            key_name = key_map[key]
-            if key_name not in self.pressed_keys:
-                self.pressed_keys.append(key_name)
-        else:
-            # Regular key
-            key_text = event.text().upper()
-            if key_text and key_text not in self.pressed_keys:
-                self.pressed_keys.append(key_text)
-
-        # Update display
+    def _update_recording_display(self, keys):
+        """Called by KeyRecorderMixin during recording to update the display"""
         if self.recording_target == 'add_to_chat':
-            self._update_shortcut_display(self.add_to_chat_display, self.pressed_keys)
+            self._update_shortcut_display(self.add_to_chat_display, keys)
         else:
-            self._update_shortcut_display(self.ask_question_display, self.pressed_keys)
+            self._update_shortcut_display(self.ask_question_display, keys)
 
-    def keyReleaseEvent(self, event):
-        """Handle key release during recording"""
-        if not self.recording_target:
-            return super().keyReleaseEvent(event)
-
-        # Stop recording when all keys are released
-        QTimer.singleShot(100, self.check_recording_complete)
-
-    def check_recording_complete(self):
-        """Check if recording is complete and finalize"""
+    def _on_keys_recorded(self, keys):
+        """Called by KeyRecorderMixin when recording is complete"""
         if not self.recording_target:
             return
 
         # Save the recorded keys
-        if self.pressed_keys:
-            self.shortcuts[self.recording_target]["keys"] = self.pressed_keys.copy()
+        if keys:
+            self.shortcuts[self.recording_target]["keys"] = keys
 
-        # Release keyboard
-        self.releaseKeyboard()
-
-        # Update displays
+        # Update displays with final keys
         if self.recording_target == 'add_to_chat':
             self._update_shortcut_display(self.add_to_chat_display, self.shortcuts["add_to_chat"]["keys"])
         else:
@@ -258,7 +227,9 @@ class QuickActionsSettingsView(QWidget):
         config = mw.addonManager.getConfig(__name__)
         config["quick_actions"] = self.shortcuts
         mw.addonManager.writeConfig(__name__, config)
-        tooltip("Quick Actions shortcuts saved!")
+
+        # Show success message with instruction
+        tooltip("Quick Actions shortcuts saved!\n\nReview a new flashcard to see the updated shortcuts.", period=3000)
 
         # Navigate back to home
         if self.parent_panel and hasattr(self.parent_panel, 'show_home_view'):
