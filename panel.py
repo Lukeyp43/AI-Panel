@@ -937,6 +937,7 @@ class OnboardingWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.step_completed = False
+        self.current_page = 0
         self.setup_ui()
 
     def set_icon_from_svg(self, label, svg_str, size=20, color=None):
@@ -961,37 +962,53 @@ class OnboardingWidget(QWidget):
         label.setScaledContents(True)
 
     def setup_ui(self):
-        # Main outer layout - positions content at "optical center" (15% from top)
-        # Add horizontal margins for edge spacing (16px on each side)
-        outer_layout = QVBoxLayout(self)
-        outer_layout.setContentsMargins(16, 0, 16, 0)
+        # Main layout with stacked widget for pages
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # Add spacing at top (15% of typical height ~600px = 90px)
+        # Create stacked widget for multiple pages
+        self.stacked_widget = QStackedWidget()
+        main_layout.addWidget(self.stacked_widget)
+
+        # Create page 1 (Welcome page)
+        self.create_page1()
+        
+        # Create page 2 (Star on GitHub page)
+        self.create_page2()
+
+        # Start with page 1
+        self.stacked_widget.setCurrentIndex(0)
+
+    def create_page1(self):
+        """Create the first welcome page"""
+        page = QWidget()
+        outer_layout = QVBoxLayout(page)
+        outer_layout.setContentsMargins(16, 0, 16, 0)
         outer_layout.addSpacing(90)
 
-        # THE INVISIBLE COLUMN - Container with responsive width
-        # Max width 380px, but will shrink if panel is narrower
+        # Container with responsive width
         container = QWidget()
         container.setMaximumWidth(380)
         container.setStyleSheet("background: transparent;")
-
-        # Inner layout for the container
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # HEADER SECTION - Title and Creator grouped close together
-        # Title
-        title = QLabel("OpenEvidence Add-On")
+        # Title/Headline
+        title = QLabel("OpenEvidence AI")
         title.setStyleSheet("""
-            font-size: 26px;
+            font-size: 32px;
             font-weight: 700;
             color: #FFFFFF;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0px 0px 8px 0px;
+            margin: 0px 0px 16px 0px;
         """)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
+
+        # Gap after headline (24px)
+        layout.addSpacing(24)
 
         # Creator name
         creator = QLabel("Created by Luke Pettit")
@@ -1003,21 +1020,75 @@ class OnboardingWidget(QWidget):
         creator.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(creator)
 
-        # Gap after header (32px)
+        # Gap before button (60px to move it down)
+        layout.addSpacing(60)
+
+        # Next button
+        next_btn = QPushButton("Next →")
+        next_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        next_btn.setStyleSheet("""
+            QPushButton {
+                background: #3498db;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 16px;
+            }
+            QPushButton:hover {
+                background: #5dade2;
+            }
+        """)
+        next_btn.clicked.connect(self.go_to_page2)
+        layout.addWidget(next_btn)
+
+        outer_layout.addWidget(container, 0, Qt.AlignmentFlag.AlignHCenter)
+        outer_layout.addStretch(1)
+        self.stacked_widget.addWidget(page)
+
+    def create_page2(self):
+        """Create the second page (Star on GitHub)"""
+        page = QWidget()
+        outer_layout = QVBoxLayout(page)
+        outer_layout.setContentsMargins(16, 0, 16, 0)
+        outer_layout.addSpacing(90)
+
+        # Container with responsive width
+        container = QWidget()
+        container.setMaximumWidth(380)
+        container.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Headline
+        headline = QLabel("Unlock Unlimited Requests")
+        headline.setStyleSheet("""
+            font-size: 26px;
+            font-weight: 700;
+            color: #FFFFFF;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0px 0px 8px 0px;
+        """)
+        headline.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(headline)
+
+        # Gap after headline (32px)
         layout.addSpacing(32)
 
-        # CONTENT SECTION - Description text (LEFT-ALIGNED to match box edge)
-        description = QLabel("To enable this add-on, please support this project by giving us a free star on GitHub.")
-        description.setWordWrap(True)
-        description.setStyleSheet("""
+        # Body text
+        body = QLabel("Give us a free star on GitHub to get unlimited requests on our add-on for free.")
+        body.setWordWrap(True)
+        body.setStyleSheet("""
             font-size: 15px;
             color: #BBBBBB;
             font-weight: 400;
             line-height: 1.5;
             padding-left: 2px;
         """)
-        description.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(description)
+        body.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(body)
 
         # Small gap before checkbox (20px)
         layout.addSpacing(20)
@@ -1086,6 +1157,12 @@ class OnboardingWidget(QWidget):
         # Gap before Next button (16px)
         layout.addSpacing(16)
 
+        # Container for Next button and skip link
+        bottom_container = QWidget()
+        bottom_layout = QVBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(8)
+
         # BIG NEXT BUTTON - Grayed out "locked" state
         self.continue_btn = QPushButton("Next →")
         self.continue_btn.setCursor(QCursor(Qt.CursorShape.ForbiddenCursor))
@@ -1102,11 +1179,81 @@ class OnboardingWidget(QWidget):
             }
         """)
         self.continue_btn.clicked.connect(self.on_continue_clicked)
-        layout.addWidget(self.continue_btn)
+        bottom_layout.addWidget(self.continue_btn)
 
-        # Add the container to the outer layout (horizontally centered)
+        # Skip link - aligned to the right
+        skip_container = QWidget()
+        skip_layout = QHBoxLayout(skip_container)
+        skip_layout.setContentsMargins(0, 0, 0, 0)
+        skip_layout.addStretch()
+        
+        self.skip_link = QLabel("Continue with limited access")
+        self.skip_link.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.skip_link.setStyleSheet("""
+            QLabel {
+                color: #555555;
+                font-size: 10px;
+                background: transparent;
+                border: none;
+            }
+            QLabel:hover {
+                color: #777777;
+            }
+        """)
+        
+        # Make it clickable
+        def skip_clicked(event):
+            try:
+                if event.button() == Qt.MouseButton.LeftButton:
+                    self.skip_onboarding()
+            except AttributeError:
+                # PyQt5 fallback
+                if event.button() == Qt.LeftButton:
+                    self.skip_onboarding()
+        self.skip_link.mousePressEvent = skip_clicked
+        skip_layout.addWidget(self.skip_link)
+
+        bottom_layout.addWidget(skip_container)
+        layout.addWidget(bottom_container)
+
         outer_layout.addWidget(container, 0, Qt.AlignmentFlag.AlignHCenter)
         outer_layout.addStretch(1)
+        self.stacked_widget.addWidget(page)
+
+    def go_to_page2(self):
+        """Navigate to page 2"""
+        self.stacked_widget.setCurrentIndex(1)
+
+    def skip_onboarding(self):
+        """Skip the onboarding and continue with limited access"""
+        self.complete_onboarding()
+
+    def complete_onboarding(self):
+        """Complete onboarding and show the panel"""
+        # Save config - ensure it's properly saved
+        try:
+            config = mw.addonManager.getConfig(__name__) or {}
+            config["onboarding_completed"] = True
+            mw.addonManager.writeConfig(__name__, config)
+            
+            # Verify it was saved
+            saved_config = mw.addonManager.getConfig(__name__) or {}
+            if saved_config.get("onboarding_completed"):
+                print(f"OpenEvidence: Onboarding completed successfully, config saved")
+            else:
+                print(f"OpenEvidence: WARNING - Config may not have saved correctly")
+        except Exception as e:
+            print(f"OpenEvidence: Error saving onboarding config: {e}")
+
+        # Small delay to ensure config is written, then replace widget
+        QTimer.singleShot(100, self._replace_with_panel)
+
+    def _replace_with_panel(self):
+        """Replace onboarding widget with actual panel"""
+        from . import dock_widget
+        if dock_widget:
+            panel = OpenEvidencePanel()
+            dock_widget.setWidget(panel)
 
     def on_star_clicked(self):
         if not self.step_completed:
@@ -1164,13 +1311,6 @@ class OnboardingWidget(QWidget):
             """)
 
     def on_continue_clicked(self):
-        # Save config
-        config = mw.addonManager.getConfig(__name__) or {}
-        config["onboarding_completed"] = True
-        mw.addonManager.writeConfig(__name__, config)
-
-        # Replace widget with actual OpenEvidence panel
-        from . import dock_widget
-        if dock_widget:
-            panel = OpenEvidencePanel()
-            dock_widget.setWidget(panel)
+        """Continue after starring (only enabled after star is clicked)"""
+        if self.continue_btn.isEnabled():
+            self.complete_onboarding()
