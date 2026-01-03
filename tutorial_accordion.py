@@ -84,31 +84,48 @@ class AccordionItem(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Header (non-clickable, stationary)
+        # SECTION HEADER - Exact spacing and sizes
         header_container = QWidget()
-        header_container.setMinimumHeight(72)
         header_container.setStyleSheet("background: transparent; border: none;")
 
         header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(24, 16, 24, 16)
-        header_layout.setSpacing(16)
+        header_layout.setContentsMargins(24, 16, 24, 16)  # 16px top padding (part of 36px total)
+        header_layout.setSpacing(12)
 
-        # Icon
+        # Circle Icon Container (40x40)
         self.icon_label = QLabel()
         self.icon_label.setFixedSize(40, 40)
-        self.icon_label.setStyleSheet("background: transparent; border: none; outline: none;")
-        self.icon_label.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.icon_label.setStyleSheet("background: #262626; border-radius: 20px;")
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.update_icon()
-        header_layout.addWidget(self.icon_label)
+        header_layout.addWidget(self.icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        # Title only (no description)
+        # Vertical Stack: Title + Subtitle
+        text_stack = QWidget()
+        text_stack.setFixedHeight(40)  # Match icon height
+        text_layout = QVBoxLayout(text_stack)
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(0)
+
+        # Title (Medium weight, White, 16px) - aligned to top
         self.title_label = QLabel(self.title_text)
-        self.title_label.setStyleSheet("color: white; font-size: 16px; font-weight: 500; background: transparent; border: none; outline: none;")
+        self.title_label.setStyleSheet("color: #FFFFFF; font-size: 16px; font-weight: 500; background: transparent;")
         self.title_label.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        header_layout.addWidget(self.title_label)
-        header_layout.addStretch()
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        text_layout.addWidget(self.title_label, 0, Qt.AlignmentFlag.AlignTop)
 
+        # Spacer to push subtitle to bottom
+        text_layout.addStretch(1)
+
+        # Subtitle (Normal weight, neutral-400, 14px) - aligned to bottom
+        self.subtitle_label = QLabel(self.description_text)
+        self.subtitle_label.setStyleSheet("color: #a3a3a3; font-size: 14px; font-weight: 400; background: transparent;")
+        self.subtitle_label.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
+        self.subtitle_label.setWordWrap(True)
+        text_layout.addWidget(self.subtitle_label, 0, Qt.AlignmentFlag.AlignBottom)
+
+        header_layout.addWidget(text_stack, 1)
         layout.addWidget(header_container)
 
         # Content container (always visible)
@@ -117,15 +134,16 @@ class AccordionItem(QWidget):
         self.content_widget.setStyleSheet("background: transparent; border: none;")
         self.content_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         content_layout = QVBoxLayout(self.content_widget)
-        content_layout.setContentsMargins(0, 0, 0, 16)
+        content_layout.setContentsMargins(0, 0, 0, 20)  # 20px bottom for spacing
         content_layout.setSpacing(0)
 
         if self.tasks_data:
             tasks_container = QWidget()
             tasks_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
             tasks_layout = QVBoxLayout(tasks_container)
-            tasks_layout.setContentsMargins(64, 0, 24, 0)
-            tasks_layout.setSpacing(8)
+            # Align tasks with header icon center (24px left + 20px icon center = 44px)
+            tasks_layout.setContentsMargins(44, 0, 24, 0)
+            tasks_layout.setSpacing(0)
 
             for idx, task_data in enumerate(self.tasks_data):
                 is_last = (idx == len(self.tasks_data) - 1)
@@ -137,30 +155,76 @@ class AccordionItem(QWidget):
         layout.addWidget(self.content_widget)
 
     def create_task_widget(self, task_data, is_last=False):
-        """Create a single task row - SIMPLE VERSION"""
+        """Create a single task row - TREE/TIMELINE STYLE"""
         task_container = QWidget()
         task_container.setStyleSheet("background: transparent; border: none;")
+        task_container.setMinimumHeight(40)
 
-        # Simple horizontal layout
-        layout = QHBoxLayout(task_container)
-        layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(12)
+        # Main horizontal layout
+        main_layout = QHBoxLayout(task_container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(12)
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # Circle indicator
+        # LEFT: Branch container (vertical + horizontal lines) - FIXED WITH LAYOUTS
+        branch_container = QWidget()
+        branch_container.setFixedWidth(20)
+        branch_layout = QHBoxLayout(branch_container)
+        branch_layout.setContentsMargins(0, 0, 0, 0)
+        branch_layout.setSpacing(0)
+
+        # Vertical line container
+        vert_container = QWidget()
+        vert_container.setFixedWidth(1)
+        vert_layout = QVBoxLayout(vert_container)
+        vert_layout.setContentsMargins(0, 0, 0, 0)
+        vert_layout.setSpacing(0)
+
+        # Top vertical line (before branch)
+        top_line = QFrame()
+        top_line.setFrameShape(QFrame.Shape.VLine)
+        top_line.setStyleSheet("background-color: #3f3f46; border: none;")
+        top_line.setFixedWidth(1)
+        top_line.setMinimumHeight(8)
+        vert_layout.addWidget(top_line)
+
+        # Horizontal branch line
+        horiz_line = QFrame()
+        horiz_line.setFrameShape(QFrame.Shape.HLine)
+        horiz_line.setStyleSheet("background-color: #3f3f46; border: none;")
+        horiz_line.setFixedHeight(1)
+        horiz_line.setFixedWidth(19)
+
+        if not is_last:
+            # Bottom vertical line (after branch) - only if not last item
+            bottom_line = QFrame()
+            bottom_line.setFrameShape(QFrame.Shape.VLine)
+            bottom_line.setStyleSheet("background-color: #3f3f46; border: none;")
+            bottom_line.setFixedWidth(1)
+            vert_layout.addWidget(bottom_line)
+            vert_layout.setStretch(1, 1)  # Bottom line expands
+
+        branch_layout.addWidget(vert_container, 0, Qt.AlignmentFlag.AlignLeft)
+        branch_layout.addWidget(horiz_line, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
+        main_layout.addWidget(branch_container, 0, Qt.AlignmentFlag.AlignTop)
+
+        # CENTER: Circle indicator
         circle_label = QLabel()
-        circle_label.setFixedSize(20, 20)
+        circle_label.setFixedSize(16, 16)
+        circle_label.setStyleSheet("background: transparent;")
 
         if not hasattr(self, 'task_circles'):
             self.task_circles = []
         self.task_circles.append(circle_label)
 
-        layout.addWidget(circle_label, 0, Qt.AlignmentFlag.AlignTop)
+        main_layout.addWidget(circle_label, 0, Qt.AlignmentFlag.AlignTop)
 
-        # Task text - SIMPLE label
+        # RIGHT: Task text
         task_label = QLabel(task_data["text"])
         task_label.setWordWrap(True)
         task_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        task_label.setStyleSheet("color: #D4D4D4; font-size: 16px; background: transparent;")
+        task_label.setStyleSheet("color: #FFFFFF; font-size: 13px; background: transparent; padding-top: 2px;")
 
         # Store data
         task_label.setProperty("task_data", task_data)
@@ -170,7 +234,7 @@ class AccordionItem(QWidget):
         # Make clickable
         task_label.mousePressEvent = lambda event, cl=circle_label, tl=task_label, tc=task_container: self.toggle_task(cl, tl, tc)
 
-        layout.addWidget(task_label, 1)
+        main_layout.addWidget(task_label, 1, Qt.AlignmentFlag.AlignTop)
 
         # Store references
         checkbox_placeholder = QCheckBox()
@@ -204,24 +268,23 @@ class AccordionItem(QWidget):
         """Update the visual appearance of a task based on completion state"""
         if is_completed:
             # Completed state: Filled blue circle with checkmark
-            filled_circle_svg = """<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="10" cy="10" r="9" fill="#171717" stroke="#2563EB" stroke-width="2"/>
-                <circle cx="10" cy="10" r="8" fill="#2563EB"/>
-                <path d="M6 10 L9 13 L14 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            filled_circle_svg = """<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="8" fill="#2563EB"/>
+                <path d="M5 8 L7 10 L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>"""
             self.set_svg_icon(circle_label, filled_circle_svg)
 
             # Strikethrough text and gray color
-            task_label.setStyleSheet("color: #737373; font-size: 16px; background: transparent; padding: 0px; text-decoration: line-through;")
+            task_label.setStyleSheet("color: #737373; font-size: 13px; background: transparent; padding-top: 2px; text-decoration: line-through;")
         else:
             # Uncompleted state: Empty gray circle outline
-            empty_circle_svg = """<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="10" cy="10" r="9" fill="#171717" stroke="#525252" stroke-width="2"/>
+            empty_circle_svg = """<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="7" fill="none" stroke="#525252" stroke-width="1.5"/>
             </svg>"""
             self.set_svg_icon(circle_label, empty_circle_svg)
 
-            # Normal text
-            task_label.setStyleSheet("color: #D4D4D4; font-size: 16px; background: transparent; padding: 0px;")
+            # Normal text - bright white for dark background
+            task_label.setStyleSheet("color: #FFFFFF; font-size: 13px; background: transparent; padding-top: 2px;")
 
         # No border or background on container
         task_container.setStyleSheet("background: transparent; border: none;")
@@ -254,32 +317,28 @@ class AccordionItem(QWidget):
     def update_icon(self):
         if self.is_all_tasks_completed():
             check_svg = """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="20" cy="20" r="19" fill="#2563EB"/>
-                <path d="M12 20 L17 25 L28 14" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="20" cy="20" r="20" fill="#2563EB"/>
+                <path d="M13 20 L17 24 L27 14" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>"""
             self.set_svg_icon(self.icon_label, check_svg)
         else:
-            # Create complete SVG icons directly at proper size
+            # SVG icons at 40x40 with 20px icons inside (50% of container)
             svg_map = {
                 "document": """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="19" fill="#262626"/>
-                    <path d="M12 11 L12 29 L28 29 L28 17 L22 11 Z M22 11 L22 17 L28 17" stroke="#A3A3A3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M15 12 L15 28 L25 28 L25 18 L21 12 Z M21 12 L21 18 L25 18" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                 </svg>""",
                 "search": """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="19" fill="#262626"/>
-                    <circle cx="19" cy="19" r="6" stroke="#A3A3A3" stroke-width="2" fill="none"/>
-                    <path d="M23.5 23.5 L27 27" stroke="#A3A3A3" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="19" cy="19" r="6" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                    <path d="M23.5 23.5 L26 26" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round"/>
                 </svg>""",
                 "grid": """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="19" fill="#262626"/>
-                    <rect x="12" y="12" width="6" height="6" rx="1" stroke="#A3A3A3" stroke-width="2" fill="none"/>
-                    <rect x="22" y="12" width="6" height="6" rx="1" stroke="#A3A3A3" stroke-width="2" fill="none"/>
-                    <rect x="12" y="22" width="6" height="6" rx="1" stroke="#A3A3A3" stroke-width="2" fill="none"/>
-                    <rect x="22" y="22" width="6" height="6" rx="1" stroke="#A3A3A3" stroke-width="2" fill="none"/>
+                    <rect x="13" y="13" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                    <rect x="21" y="13" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                    <rect x="13" y="21" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                    <rect x="21" y="21" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
                 </svg>""",
                 "settings": """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="19" fill="#262626"/>
-                    <path d="M20 12 L25 16 L25 24 L20 28 L15 24 L15 16 Z" stroke="#A3A3A3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    <path d="M20 14 L25 17 L25 23 L20 26 L15 23 L15 17 Z" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                 </svg>"""
             }
 
@@ -289,7 +348,7 @@ class AccordionItem(QWidget):
                 title_lower = self.title_text.lower()
                 if "quick" in title_lower or "action" in title_lower:
                     icon_key = "search"
-                elif "template" in title_lower:
+                elif "template" in title_lower or "shortcut" in title_lower:
                     icon_key = "grid"
                 elif "setting" in title_lower or "customization" in title_lower:
                     icon_key = "settings"
