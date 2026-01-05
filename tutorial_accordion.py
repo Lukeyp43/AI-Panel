@@ -84,12 +84,12 @@ class AccordionItem(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # SECTION HEADER - Exact spacing and sizes
+        # SECTION HEADER - Reduced margins
         header_container = QWidget()
         header_container.setStyleSheet("background: transparent; border: none;")
 
         header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(24, 16, 24, 16)  # 16px top padding (part of 36px total)
+        header_layout.setContentsMargins(24, 0, 24, 2)  # No top spacing, 2px bottom
         header_layout.setSpacing(12)
 
         # Circle Icon Container (40x40)
@@ -134,7 +134,7 @@ class AccordionItem(QWidget):
         self.content_widget.setStyleSheet("background: transparent; border: none;")
         self.content_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         content_layout = QVBoxLayout(self.content_widget)
-        content_layout.setContentsMargins(0, 0, 0, 20)  # 20px bottom for spacing
+        content_layout.setContentsMargins(0, 4, 0, 12)  # 4px top, 12px bottom - reduced spacing
         content_layout.setSpacing(0)
 
         if self.tasks_data:
@@ -318,27 +318,37 @@ class AccordionItem(QWidget):
         if self.is_all_tasks_completed():
             check_svg = """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="20" cy="20" r="20" fill="#2563EB"/>
-                <path d="M13 20 L17 24 L27 14" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 20 L18 24 L26 16" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>"""
             self.set_svg_icon(self.icon_label, check_svg)
         else:
-            # SVG icons at 40x40 with 20px icons inside (50% of container)
+            # HIGH QUALITY SVG icons - 20px icons perfectly centered in 40x40
             svg_map = {
                 "document": """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 12 L15 28 L25 28 L25 18 L21 12 Z M21 12 L21 18 L25 18" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    <g transform="translate(10, 10)">
+                        <path d="M4 2 L4 18 L16 18 L16 7 L11 2 Z" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <path d="M11 2 L11 7 L16 7" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    </g>
                 </svg>""",
                 "search": """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="19" cy="19" r="6" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
-                    <path d="M23.5 23.5 L26 26" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round"/>
+                    <g transform="translate(10, 10)">
+                        <circle cx="8" cy="8" r="5.5" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                        <path d="M12.5 12.5 L17 17" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round"/>
+                    </g>
                 </svg>""",
                 "grid": """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="13" y="13" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
-                    <rect x="21" y="13" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
-                    <rect x="13" y="21" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
-                    <rect x="21" y="21" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                    <g transform="translate(10, 10)">
+                        <rect x="2" y="2" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                        <rect x="12" y="2" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                        <rect x="2" y="12" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                        <rect x="12" y="12" width="6" height="6" rx="1" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                    </g>
                 </svg>""",
                 "settings": """<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 14 L25 17 L25 23 L20 26 L15 23 L15 17 Z" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    <g transform="translate(10, 10)">
+                        <path d="M10 3 L15 6 L15 14 L10 17 L5 14 L5 6 Z" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <circle cx="10" cy="10" r="2.5" stroke="#a3a3a3" stroke-width="1.5" fill="none"/>
+                    </g>
                 </svg>"""
             }
 
@@ -399,8 +409,8 @@ class TutorialAccordion(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMinimumWidth(420)
         self.setMaximumWidth(420)
-        self.setMinimumHeight(400)  # Ensure enough height for content
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.MinimumExpanding)
+        # No minimum height - let content determine size
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
         self.setup_ui()
         self.position_bottom_left()
