@@ -137,11 +137,22 @@ class AccordionItem(QWidget):
         content_layout.setSpacing(0)
 
         if self.tasks_data:
+            # Simple container for tasks with line positioned correctly
             tasks_container = QWidget()
             tasks_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+            tasks_container.setStyleSheet("background: transparent;")
+
+            # Create vertical line as background
+            self.vertical_line = QFrame(tasks_container)
+            self.vertical_line.setFrameShape(QFrame.Shape.VLine)
+            self.vertical_line.setStyleSheet("background-color: #3f3f46; border: none;")
+            self.vertical_line.setFixedWidth(1)
+            # Position line at x=52 (44px margin + 8px to center of circle)
+            self.vertical_line.setGeometry(52, 8, 1, 1000)  # Will be resized dynamically
+            self.vertical_line.lower()  # Send to back
+
             tasks_layout = QVBoxLayout(tasks_container)
-            # Align tasks with header icon center (24px left + 20px icon center = 44px)
-            tasks_layout.setContentsMargins(44, 0, 24, 0)
+            tasks_layout.setContentsMargins(44, 0, 24, 0)  # Align with header icon
             tasks_layout.setSpacing(0)
 
             for idx, task_data in enumerate(self.tasks_data):
@@ -150,6 +161,9 @@ class AccordionItem(QWidget):
                 tasks_layout.addWidget(task_widget)
 
             content_layout.addWidget(tasks_container)
+
+            # Update line height after a short delay to ensure layout is complete
+            QTimer.singleShot(50, self.update_vertical_line)
 
         layout.addWidget(self.content_widget)
 
@@ -163,18 +177,21 @@ class AccordionItem(QWidget):
         # Main horizontal layout
         main_layout = QHBoxLayout(task_container)
         main_layout.setContentsMargins(0, 0, 0, 8)  # Add 8px bottom margin for spacing between tasks
-        main_layout.setSpacing(12)
+        main_layout.setSpacing(0)
 
-        # CENTER: Circle indicator
+        # CENTER: Circle indicator with dark background to hide line behind it
         circle_label = QLabel()
         circle_label.setFixedSize(16, 16)
-        circle_label.setStyleSheet("background: transparent;")
+        circle_label.setStyleSheet("background: #171717; border-radius: 8px;")  # Dark background matching card
 
         if not hasattr(self, 'task_circles'):
             self.task_circles = []
         self.task_circles.append(circle_label)
 
         main_layout.addWidget(circle_label, 0, Qt.AlignmentFlag.AlignTop)
+
+        # Spacing between circle and text
+        main_layout.addSpacing(12)
 
         # RIGHT: Task text - Use WordWrapLabel for proper height calculation
         task_label = WordWrapLabel(task_data["text"])
@@ -246,7 +263,19 @@ class AccordionItem(QWidget):
 
     def on_task_changed(self):
         self.update_icon()
+        self.update_vertical_line()
         self.toggled.emit()
+
+    def update_vertical_line(self):
+        """Update the vertical line height to match tasks container"""
+        if hasattr(self, 'vertical_line') and hasattr(self, 'content_widget'):
+            # Get the actual height of the content
+            content_height = self.content_widget.height()
+            if content_height > 0:
+                # Line should go from first circle center to last circle center
+                # Starting 8px from top (first circle center) to content height - 8px (last circle center)
+                line_height = max(0, content_height - 16)
+                self.vertical_line.setGeometry(52, 8, 1, line_height)
 
     def is_all_tasks_completed(self):
         if not self.task_checkboxes:
@@ -268,6 +297,16 @@ class AccordionItem(QWidget):
         if self.is_expanded:
             self.is_expanded = False
             self.content_widget.setVisible(False)
+
+    def showEvent(self, event):
+        """Update vertical line when widget is shown"""
+        super().showEvent(event)
+        QTimer.singleShot(100, self.update_vertical_line)
+
+    def resizeEvent(self, event):
+        """Update vertical line when widget is resized"""
+        super().resizeEvent(event)
+        self.update_vertical_line()
 
     def update_icon(self):
         if self.is_all_tasks_completed():

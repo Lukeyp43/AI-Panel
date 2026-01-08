@@ -1,8 +1,3 @@
-"""
-Main panel components for the OpenEvidence add-on.
-Contains the CustomTitleBar, OpenEvidencePanel, and OnboardingWidget.
-"""
-
 import json
 import webbrowser
 from aqt import mw
