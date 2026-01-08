@@ -77,6 +77,7 @@ class AccordionItem(QWidget):
         self.tasks_data = tasks
         self.is_expanded = False
         self.task_checkboxes = []
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.setup_ui()
 
     def setup_ui(self):
@@ -87,6 +88,7 @@ class AccordionItem(QWidget):
         # SECTION HEADER - Reduced margins
         header_container = QWidget()
         header_container.setStyleSheet("background: transparent; border: none;")
+        header_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         header_layout = QHBoxLayout(header_container)
         header_layout.setContentsMargins(24, 0, 24, 2)  # No top spacing, 2px bottom
@@ -102,28 +104,25 @@ class AccordionItem(QWidget):
 
         # Vertical Stack: Title + Subtitle
         text_stack = QWidget()
-        text_stack.setFixedHeight(40)  # Match icon height
+        # Remove fixed height to allow content to expand
+        text_stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         text_layout = QVBoxLayout(text_stack)
         text_layout.setContentsMargins(0, 0, 0, 0)
-        text_layout.setSpacing(0)
+        text_layout.setSpacing(4)  # Small gap between title and subtitle
 
-        # Title (Medium weight, White, 16px) - aligned to top
-        self.title_label = QLabel(self.title_text)
+        # Title (Medium weight, White, 16px)
+        self.title_label = WordWrapLabel(self.title_text)
         self.title_label.setStyleSheet("color: #FFFFFF; font-size: 16px; font-weight: 500; background: transparent;")
         self.title_label.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        text_layout.addWidget(self.title_label, 0, Qt.AlignmentFlag.AlignTop)
+        text_layout.addWidget(self.title_label)
 
-        # Spacer to push subtitle to bottom
-        text_layout.addStretch(1)
-
-        # Subtitle (Normal weight, neutral-400, 14px) - aligned to bottom
-        self.subtitle_label = QLabel(self.description_text)
+        # Subtitle (Normal weight, neutral-400, 14px)
+        self.subtitle_label = WordWrapLabel(self.description_text)
         self.subtitle_label.setStyleSheet("color: #a3a3a3; font-size: 14px; font-weight: 400; background: transparent;")
         self.subtitle_label.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
-        self.subtitle_label.setWordWrap(True)
-        text_layout.addWidget(self.subtitle_label, 0, Qt.AlignmentFlag.AlignBottom)
+        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        text_layout.addWidget(self.subtitle_label)
 
         header_layout.addWidget(text_stack, 1)
         layout.addWidget(header_container)
@@ -134,7 +133,7 @@ class AccordionItem(QWidget):
         self.content_widget.setStyleSheet("background: transparent; border: none;")
         self.content_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         content_layout = QVBoxLayout(self.content_widget)
-        content_layout.setContentsMargins(0, 12, 0, 12)  # 12px top/bottom - ensure tasks aren't clipped
+        content_layout.setContentsMargins(0, 12, 0, 0)  # 12px top, 0px bottom
         content_layout.setSpacing(0)
 
         if self.tasks_data:
@@ -158,17 +157,19 @@ class AccordionItem(QWidget):
         """Create a single task row - TREE/TIMELINE STYLE"""
         task_container = QWidget()
         task_container.setStyleSheet("background: transparent; border: none;")
-        task_container.setMinimumHeight(40)
+        task_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        # Remove setMinimumHeight to allow natural expansion with wrapped text
 
         # Main horizontal layout
         main_layout = QHBoxLayout(task_container)
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setContentsMargins(0, 0, 0, 8)  # Add 8px bottom margin for spacing between tasks
         main_layout.setSpacing(12)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # LEFT: Branch container (vertical + horizontal lines) - FIXED WITH LAYOUTS
         branch_container = QWidget()
         branch_container.setFixedWidth(20)
+        branch_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         branch_layout = QHBoxLayout(branch_container)
         branch_layout.setContentsMargins(0, 0, 0, 0)
         branch_layout.setSpacing(0)
@@ -176,6 +177,7 @@ class AccordionItem(QWidget):
         # Vertical line container
         vert_container = QWidget()
         vert_container.setFixedWidth(1)
+        vert_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         vert_layout = QVBoxLayout(vert_container)
         vert_layout.setContentsMargins(0, 0, 0, 0)
         vert_layout.setSpacing(0)
@@ -220,11 +222,10 @@ class AccordionItem(QWidget):
 
         main_layout.addWidget(circle_label, 0, Qt.AlignmentFlag.AlignTop)
 
-        # RIGHT: Task text
-        task_label = QLabel(task_data["text"])
-        task_label.setWordWrap(True)
+        # RIGHT: Task text - Use WordWrapLabel for proper height calculation
+        task_label = WordWrapLabel(task_data["text"])
         task_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        task_label.setStyleSheet("color: #FFFFFF; font-size: 13px; background: transparent; padding-top: 2px;")
+        task_label.setStyleSheet("color: #FFFFFF; font-size: 13px; background: transparent; padding: 2px 0px 4px 0px;")  # Bottom padding for wrapped lines
 
         # Store data
         task_label.setProperty("task_data", task_data)
@@ -275,7 +276,7 @@ class AccordionItem(QWidget):
             self.set_svg_icon(circle_label, filled_circle_svg)
 
             # Strikethrough text and gray color
-            task_label.setStyleSheet("color: #737373; font-size: 13px; background: transparent; padding-top: 2px; text-decoration: line-through;")
+            task_label.setStyleSheet("color: #737373; font-size: 13px; background: transparent; padding: 2px 0px 4px 0px; text-decoration: line-through;")
         else:
             # Uncompleted state: Empty gray circle outline
             empty_circle_svg = """<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -284,7 +285,7 @@ class AccordionItem(QWidget):
             self.set_svg_icon(circle_label, empty_circle_svg)
 
             # Normal text - bright white for dark background
-            task_label.setStyleSheet("color: #FFFFFF; font-size: 13px; background: transparent; padding-top: 2px;")
+            task_label.setStyleSheet("color: #FFFFFF; font-size: 13px; background: transparent; padding: 2px 0px 4px 0px;")
 
         # No border or background on container
         task_container.setStyleSheet("background: transparent; border: none;")
@@ -607,7 +608,7 @@ class TutorialAccordion(QWidget):
         self.section_container.setStyleSheet("background: transparent;")
         self.section_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.section_layout = QVBoxLayout(self.section_container)
-        self.section_layout.setContentsMargins(0, 16, 0, 0)  # 16px top spacing for all sections
+        self.section_layout.setContentsMargins(0, 16, 0, 16)  # 16px top and bottom spacing for all sections
         self.section_layout.setSpacing(0)
 
         content_layout.addWidget(self.section_container)
@@ -694,11 +695,19 @@ class TutorialAccordion(QWidget):
         """Adjust widget size to fit content"""
         # Force all child widgets to recalculate their sizes
         for item in self.accordion_items:
+            # Force all task labels to recalculate their height
+            if hasattr(item, 'task_checkboxes'):
+                for checkbox in item.task_checkboxes:
+                    task_label = checkbox.property("task_label")
+                    if task_label:
+                        task_label.updateGeometry()
+
             item.updateGeometry()
             if hasattr(item, 'content_widget'):
                 item.content_widget.updateGeometry()
 
         # Force layout to recalculate (but don't call adjustSize - it constrains height)
+        self.section_layout.activate()
         self.layout().activate()
         self.updateGeometry()
 
@@ -721,8 +730,14 @@ class TutorialAccordion(QWidget):
             current_item.is_expanded = True
             self.section_layout.addWidget(current_item)
 
-            # Resize widget to fit new content
+            # Force immediate layout update for all child widgets
+            current_item.updateGeometry()
+            current_item.content_widget.updateGeometry()
+
+            # Resize widget to fit new content with multiple delayed updates
             QTimer.singleShot(0, self.adjust_size)
+            QTimer.singleShot(50, self.adjust_size)
+            QTimer.singleShot(100, self.adjust_size)
 
     def get_max_accessible_section(self):
         """Find the furthest section user can navigate to (first incomplete section)"""
