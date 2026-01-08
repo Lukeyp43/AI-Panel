@@ -268,13 +268,19 @@ class AccordionItem(QWidget):
 
     def update_vertical_line(self):
         """Update the vertical line height to match tasks container"""
-        if hasattr(self, 'vertical_line') and hasattr(self, 'content_widget'):
-            # Get the actual height of the content
-            content_height = self.content_widget.height()
-            if content_height > 0:
-                # Line should go from first circle center to last circle center
-                # Starting 8px from top (first circle center) to content height - 8px (last circle center)
-                line_height = max(0, content_height - 16)
+        if hasattr(self, 'vertical_line') and self.task_checkboxes:
+            # Calculate line height based on actual task positions
+            # Get the last task's container
+            last_checkbox = self.task_checkboxes[-1]
+            last_container = last_checkbox.property("container")
+
+            if last_container and last_container.isVisible():
+                # Get position of last container relative to tasks_container parent
+                last_pos = last_container.pos()
+                # Line ends at last circle's center (8px from top of its container)
+                line_end = last_pos.y() + 8
+                # Line height from first circle center to last circle center
+                line_height = max(0, line_end - 8)
                 self.vertical_line.setGeometry(52, 8, 1, line_height)
 
     def is_all_tasks_completed(self):
