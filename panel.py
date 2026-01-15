@@ -45,7 +45,7 @@ import os
 # Custom WebEnginePage to intercept console messages for tutorial events
 class TutorialAwarePage(QWebEnginePage):
     """Custom page that intercepts JavaScript console messages to trigger tutorial events"""
-    
+
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
         """Override to catch special tutorial messages from JavaScript"""
         # Check for our special tutorial trigger messages
@@ -59,6 +59,19 @@ class TutorialAwarePage(QWebEnginePage):
             try:
                 from .tutorial import tutorial_event
                 tutorial_event("template_used")
+            except:
+                pass
+        # Check for auth button click tracking
+        elif message == "ANKI_ANALYTICS:signup_clicked":
+            try:
+                from .analytics import track_auth_button_click
+                track_auth_button_click("signup")
+            except:
+                pass
+        elif message == "ANKI_ANALYTICS:login_clicked":
+            try:
+                from .analytics import track_auth_button_click
+                track_auth_button_click("login")
             except:
                 pass
         # Call parent implementation for normal logging
@@ -168,7 +181,7 @@ class CustomTitleBar(QWidget):
         layout.addWidget(self.back_button)
 
         # Title label
-        self.title_label = QLabel("OpenEvidence")
+        self.title_label = QLabel("AI Panel")
         self.title_label.setStyleSheet("color: rgba(255, 255, 255, 0.9); font-size: 13px; font-weight: 500;")
         layout.addWidget(self.title_label)
 
@@ -333,7 +346,7 @@ class CustomTitleBar(QWidget):
             self.settings_button.setVisible(False)
         else:
             # Web view mode
-            self.title_label.setText("OpenEvidence")
+            self.title_label.setText("AI Panel")
             self.back_button.setVisible(False)
             self.settings_button.setVisible(True)
 
@@ -482,6 +495,11 @@ class OpenEvidencePanel(QWidget):
         # Start with web view
         self.stacked_widget.setCurrentIndex(0)
 
+        # Set up auth detection timer (check every 30 seconds)
+        self.auth_check_timer = QTimer(self)
+        self.auth_check_timer.timeout.connect(self.check_auth_status)
+        self.auth_check_timer.start(30000)  # 30 seconds
+
     def on_page_load_finished(self, ok):
         """Called when page HTML is loaded - check if fully ready"""
         if not ok:
@@ -532,6 +550,9 @@ class OpenEvidencePanel(QWidget):
                 self.loading_overlay.hide()
             self.web.show()
             self.inject_shift_key_listener()
+            self.inject_auth_button_listener()
+            # Check auth status when page is ready
+            QTimer.singleShot(2000, self.check_auth_status)  # Wait 2 seconds for tokens to load
         else:
             # Not ready yet, check again after a short delay
             QTimer.singleShot(200, lambda: self.web.page().runJavaScript(
@@ -547,6 +568,88 @@ class OpenEvidencePanel(QWidget):
                 """,
                 self.handle_ready_check
             ))
+
+    def check_auth_status(self):
+        """Check if user is authenticated on OpenEvidence"""
+        # Skip if already detected
+        from .analytics import is_user_logged_in
+        if is_user_logged_in():
+            # Already logged in, stop checking
+            if hasattr(self, 'auth_check_timer'):
+                self.auth_check_timer.stop()
+            return
+
+        # JavaScript to check for authentication tokens/cookies
+        # More strict check - look for actual auth tokens, not just any key with "user" in it
+        auth_check_js = """
+        (function() {
+            // Check localStorage for auth tokens (strict matching)
+            try {
+                var keys = Object.keys(localStorage);
+                for (var i = 0; i < keys.length; i++) {
+                    var key = keys[i].toLowerCase();
+                    // Only match keys that are LIKELY auth tokens (more specific)
+                    // Must contain "token" or "auth" or "jwt", not just "user" or "session"
+                    if ((key.includes('token') || key.includes('auth') || key.includes('jwt')) &&
+                        !key.includes('csrf')) {  // Exclude CSRF tokens
+                        var value = localStorage.getItem(keys[i]);
+                        // Check if value looks like a JWT or auth token (longer, contains dots or dashes)
+                        if (value && value.length > 50 && (value.includes('.') || value.includes('-'))) {
+                            return true;
+                        }
+                    }
+                }
+            } catch(e) {}
+
+            // Check sessionStorage for auth tokens (strict matching)
+            try {
+                var keys = Object.keys(sessionStorage);
+                for (var i = 0; i < keys.length; i++) {
+                    var key = keys[i].toLowerCase();
+                    if ((key.includes('token') || key.includes('auth') || key.includes('jwt')) &&
+                        !key.includes('csrf')) {
+                        var value = sessionStorage.getItem(keys[i]);
+                        if (value && value.length > 50 && (value.includes('.') || value.includes('-'))) {
+                            return true;
+                        }
+                    }
+                }
+            } catch(e) {}
+
+            // Check cookies for auth (look for specific auth cookie patterns)
+            try {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    var cookieName = cookie.split('=')[0].toLowerCase();
+                    var cookieValue = cookie.split('=')[1] || '';
+
+                    // Only match cookies that look like auth tokens
+                    if ((cookieName.includes('token') || cookieName.includes('auth') || cookieName.includes('jwt')) &&
+                        !cookieName.includes('csrf') &&
+                        cookieValue.length > 50) {
+                        return true;
+                    }
+                }
+            } catch(e) {}
+
+            return false;
+        })();
+        """
+
+        try:
+            self.web.page().runJavaScript(auth_check_js, self.handle_auth_check)
+        except Exception as e:
+            print(f"AI Panel: Error checking auth status: {e}")
+
+    def handle_auth_check(self, is_authenticated):
+        """Handle result of authentication check"""
+        if is_authenticated:
+            from .analytics import track_login_detected
+            track_login_detected()
+            # Stop the timer since we detected login
+            if hasattr(self, 'auth_check_timer'):
+                self.auth_check_timer.stop()
 
     def _update_title_bar(self, is_settings):
         """Update title bar state"""
@@ -718,6 +821,62 @@ class OpenEvidencePanel(QWidget):
         self.stacked_widget.addWidget(editor_view)
         self.stacked_widget.setCurrentIndex(1)
         self._update_title_bar(True)
+
+    def inject_auth_button_listener(self):
+        """Inject JavaScript to track clicks on Sign up / Log in buttons"""
+        listener_js = """
+        (function() {
+            // Only inject if not already injected
+            if (window.ankiAuthButtonListenerInjected) {
+                console.log('Anki: Auth button listener already exists, skipping injection');
+                return;
+            }
+
+            console.log('Anki: Injecting auth button click tracker');
+            window.ankiAuthButtonListenerInjected = true;
+
+            // Use event delegation to catch clicks on dynamically loaded buttons
+            document.addEventListener('click', function(event) {
+                var target = event.target;
+
+                // Traverse up to find the actual button/link (in case user clicks on text inside)
+                var clickedElement = target;
+                for (var i = 0; i < 5 && clickedElement; i++) {
+                    // Only check actual interactive elements (buttons, links)
+                    var tagName = clickedElement.tagName ? clickedElement.tagName.toLowerCase() : '';
+                    if (tagName !== 'button' && tagName !== 'a') {
+                        clickedElement = clickedElement.parentElement;
+                        continue;
+                    }
+
+                    var text = (clickedElement.textContent || '').toLowerCase().trim();
+                    var href = (clickedElement.href || '').toLowerCase();
+
+                    // Check for "Sign up" button - must be exact match or in href
+                    if (text === 'sign up' || text === 'sign up for free access' ||
+                        href.includes('/signup') || href.includes('/register')) {
+                        console.log('ANKI_ANALYTICS:signup_clicked');
+                        break;
+                    }
+
+                    // Check for "Log in" button - must be exact match or in href
+                    if (text === 'log in' || text === 'login' || text === 'log in here' ||
+                        href.includes('/login') || href.includes('/signin')) {
+                        console.log('ANKI_ANALYTICS:login_clicked');
+                        break;
+                    }
+
+                    // Move up to parent element
+                    clickedElement = clickedElement.parentElement;
+                }
+            }, true);  // Use capture phase to catch all clicks
+        })();
+        """
+
+        try:
+            self.web.page().runJavaScript(listener_js)
+        except Exception as e:
+            print(f"AI Panel: Error injecting auth button listener: {e}")
 
     def inject_shift_key_listener(self):
         """Inject JavaScript to listen for custom keybindings"""
@@ -1051,7 +1210,7 @@ class OnboardingWidget(QWidget):
         layout.setSpacing(0)
 
         # Title/Headline
-        title = QLabel("OpenEvidence AI")
+        title = QLabel("AI Panel")
         title.setStyleSheet("""
             font-size: 32px;
             font-weight: 700;

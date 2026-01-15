@@ -6,6 +6,7 @@ from aqt.qt import *
 from .panel import CustomTitleBar, OpenEvidencePanel, OnboardingWidget
 from .utils import clean_html_text
 from .reviewer_highlight import setup_highlight_hooks
+from .analytics import init_analytics, track_usage, try_send_daily_analytics
 
 # Global references
 dock_widget = None
@@ -63,8 +64,8 @@ def create_dock_widget():
 
     if dock_widget is None:
         # Create the dock widget
-        dock_widget = QDockWidget("OpenEvidence", mw)
-        dock_widget.setObjectName("OpenEvidenceDock")
+        dock_widget = QDockWidget("AI Panel", mw)
+        dock_widget.setObjectName("AIPanelDock")
 
         # Check if onboarding is complete
         config = mw.addonManager.getConfig(__name__) or {}
@@ -133,6 +134,9 @@ def toggle_panel():
 
         dock_widget.show()
         dock_widget.raise_()
+
+        # Track usage analytics
+        track_usage()
 
         # Notify tutorial that panel was opened
         try:
@@ -264,8 +268,11 @@ def store_current_card_text(card):
 
 
 def handle_add_context(selected_text):
-    """Handle 'Add to Chat' action - populate OpenEvidence search with selected text"""
+    """Handle 'Add to Chat' action - populate AI Panel search with selected text"""
     global dock_widget
+
+    # Track usage
+    track_usage()
 
     # Make sure the panel is created and visible
     if dock_widget is None:
@@ -342,8 +349,11 @@ def handle_add_context(selected_text):
 
 
 def handle_ask_query(query, context):
-    """Handle 'Ask Question' action - format and auto-submit to OpenEvidence"""
+    """Handle 'Ask Question' action - format and auto-submit to AI Panel"""
     global dock_widget
+
+    # Track usage
+    track_usage()
 
     # Make sure the panel is created and visible
     if dock_widget is None:
@@ -430,17 +440,23 @@ def add_toolbar_button(links, toolbar):
 </svg>
 """
 
-    # Add the OpenEvidence panel button
+    # Add the AI Panel panel button
     links.append(
-        f'<a class="hitem" href="#" onclick="pycmd(\'openevidence\'); return false;" title="OpenEvidence">{open_book_icon}</a>'
+        f'<a class="hitem" href="#" onclick="pycmd(\'openevidence\'); return false;" title="AI Panel">{open_book_icon}</a>'
     )
 
 
 def preload_panel():
     """Preload panel after a short delay to avoid competing with Anki startup"""
+    # Initialize analytics on first run
+    init_analytics()
+
     # Ensure platform-appropriate defaults are set
     ensure_platform_defaults()
-    
+
+    # Try to send analytics once per day (non-blocking)
+    try_send_daily_analytics()
+
     # Wait 500ms after Anki finishes initializing to start preloading
     # This ensures Anki's UI is responsive while OpenEvidence loads in background
     from aqt.qt import QTimer

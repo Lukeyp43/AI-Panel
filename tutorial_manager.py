@@ -286,7 +286,7 @@ class TutorialManager(QObject):
         """
         Create a demo deck with sample medical flashcards and open it for review.
 
-        This allows users to immediately test OpenEvidence features without
+        This allows users to immediately test AI Panel features without
         needing their own content.
         """
         try:
@@ -295,7 +295,7 @@ class TutorialManager(QObject):
             from anki.collection import Collection
 
             # Create or get the demo deck
-            deck_name = "OpenEvidence Demo"
+            deck_name = "AI Panel Demo"
             deck_id = mw.col.decks.id(deck_name)
 
             # Check if deck already has cards

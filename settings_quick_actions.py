@@ -89,7 +89,7 @@ class QuickActionsSettingsView(KeyRecorderMixin, QWidget):
         self.add_to_chat_display.clicked.connect(lambda: self.start_recording('add_to_chat'))
         content_layout.addWidget(self.add_to_chat_display)
 
-        add_to_chat_desc = QLabel("Directly add highlighted text to OpenEvidence chat")
+        add_to_chat_desc = QLabel("Directly add highlighted text to AI Panel chat")
         add_to_chat_desc.setStyleSheet("color: #6b7280; font-size: 11px; margin-bottom: 8px;")
         content_layout.addWidget(add_to_chat_desc)
 
