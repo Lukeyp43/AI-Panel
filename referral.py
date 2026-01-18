@@ -160,7 +160,22 @@ class ReferralOverlay(QWidget):
         # Ensure the widget fills entirely
         self.setAutoFillBackground(True)
         
+        # Install event filter on parent to catch resize events
+        if parent:
+            parent.installEventFilter(self)
+        
         self.setup_ui()
+    
+    def eventFilter(self, watched, event):
+        """Resize overlay when parent is resized."""
+        try:
+            from PyQt6.QtCore import QEvent
+        except ImportError:
+            from PyQt5.QtCore import QEvent
+        
+        if watched == self.parent() and event.type() == QEvent.Type.Resize:
+            self.setGeometry(self.parent().rect())
+        return super().eventFilter(watched, event)
         
     def paintEvent(self, event):
         """Override paint to guarantee solid dark background."""
@@ -337,28 +352,26 @@ class ReferralOverlay(QWidget):
         
         content_layout.addSpacing(30)
         
-        # === BUTTONS (hidden initially) ===
+        # === BUTTONS (shown with QR, but done button starts locked) ===
         self.btn_container = QWidget()
         self.btn_container.hide()
         btn_layout = QVBoxLayout(self.btn_container)
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setSpacing(12)
         
-        # Done button
-        self.done_btn = QPushButton("I sent it (Claim Good Luck)")
-        self.done_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        # Done button - starts LOCKED
+        self.done_btn = QPushButton("🔒 Claim Good Luck")
+        self.done_btn.setEnabled(False)  # Disabled initially
+        self.done_btn.setCursor(QCursor(Qt.CursorShape.ForbiddenCursor))
         self.done_btn.setStyleSheet("""
             QPushButton {
-                background: #3b82f6;
-                color: white;
+                background: #333333;
+                color: #888888;
                 border: none;
                 border-radius: 8px;
                 font-size: 14px;
                 font-weight: 600;
                 padding: 14px 28px;
-            }
-            QPushButton:hover {
-                background: #2563eb;
             }
         """)
         self.done_btn.clicked.connect(self.on_done_clicked)
@@ -403,7 +416,7 @@ class ReferralOverlay(QWidget):
         self.intro_text = "Wait, I'm so sorry to interrupt..."
         self.headline_text = "Quick question... do you want to lock in good luck on your next exam?"
         self.body_text = "Please share this add-on with a friend or put it in your group chat for extra luck."
-        self.instruction_text = "Scan with your phone. It pre-fills a text and just change the recipient to a friend and hit send."
+        self.instruction_text = "Scan with your phone. It pre-fills a text and just change the recipient to a friend and hit send. (The button below will unlock once you do)."
         
         # Phase 1: Type intro
         self.typing_index = 0
@@ -481,15 +494,35 @@ class ReferralOverlay(QWidget):
         self.typing_timer.start(70)  # 70ms instruction text
     
     def show_qr_code(self):
-        """Fade in the QR code."""
+        """Show QR code and buttons (button starts locked)."""
         self.qr_container.show()
-        # Show buttons after 18 seconds from overlay open
-        elapsed = (datetime.now() - self.open_time).total_seconds()
-        remaining = max(0, 18 - elapsed)
-        QTimer.singleShot(int(remaining * 1000), self.show_buttons)
+        self.btn_container.show()  # Show buttons immediately with QR
+        
+        # Unlock button after 12 seconds
+        QTimer.singleShot(12000, self.unlock_button)
+    
+    def unlock_button(self):
+        """Unlock the done button after 12 seconds."""
+        self.done_btn.setEnabled(True)
+        self.done_btn.setText("I sent it (Claim Good Luck)")
+        self.done_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.done_btn.setStyleSheet("""
+            QPushButton {
+                background: #007AFF;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 14px 28px;
+            }
+            QPushButton:hover {
+                background: #0056b3;
+            }
+        """)
     
     def show_buttons(self):
-        """Show the action buttons."""
+        """Show the action buttons (legacy, now handled in show_qr_code)."""
         self.btn_container.show()
     
     
