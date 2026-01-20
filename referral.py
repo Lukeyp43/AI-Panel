@@ -20,7 +20,7 @@ except ImportError:
 ADDON_NAME = "the_ai_panel"
 
 # Referral link (GitHub repo)
-REFERRAL_LINK = "https://github.com/Lukeyp43/The-AI-Panel"
+REFERRAL_LINK = "https://ankiweb.net/shared/info/1314683963"
 
 
 import os
