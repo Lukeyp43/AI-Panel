@@ -1,0 +1,55 @@
+{
+    "referral_threshold": 4,
+    "referral_days_threshold": 3,
+    "width": 500,
+    "height_percentage": 0.9,
+    "onboarding_completed": false,
+    "tutorial_completed": false,
+    "analytics_endpoint": "https://ysabnlraqldhikuoilcs.supabase.co/functions/v1/ai-panel-analytics",
+    "keybindings": [
+        {
+            "name": "Standard Explain",
+            "keys": [
+                "Control",
+                "Shift",
+                "S"
+            ],
+            "question_template": "Can you explain this to me:\n\n{front}",
+            "answer_template": "Can you explain this to me:\n\nQuestion:\n{front}\n\nAnswer:\n{back}"
+        },
+        {
+            "name": "Front/Back",
+            "keys": [
+                "Control",
+                "Shift",
+                "Q"
+            ],
+            "question_template": "{front}",
+            "answer_template": "{front}"
+        },
+        {
+            "name": "Back Only",
+            "keys": [
+                "Control",
+                "Shift",
+                "A"
+            ],
+            "question_template": "",
+            "answer_template": "{back}"
+        }
+    ],
+    "quick_actions": {
+        "add_to_chat": {
+            "keys": [
+                "Meta",
+                "F"
+            ]
+        },
+        "ask_question": {
+            "keys": [
+                "Meta",
+                "R"
+            ]
+        }
+    }
+}

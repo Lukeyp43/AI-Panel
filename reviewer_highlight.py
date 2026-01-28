@@ -132,10 +132,17 @@ HIGHLIGHT_BUBBLE_JS = """
         }
     }
 
-    // Track Command/Meta key state
+    // Track Command/Meta key state (Mac) or Control key state (Windows/Linux)
     document.addEventListener('keydown', (e) => {
-        if (e.metaKey || e.key === 'Meta' || e.key === 'Command') {
-            cmdKeyHeld = true;
+        var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        if (isMac) {
+            if (e.metaKey || e.key === 'Meta' || e.key === 'Command') {
+                cmdKeyHeld = true;
+            }
+        } else {
+            if (e.ctrlKey || e.key === 'Control') {
+                cmdKeyHeld = true;
+            }
         }
     }, true);
 
@@ -193,8 +200,15 @@ HIGHLIGHT_BUBBLE_JS = """
     }, true);  // Capture phase - intercept before anyone else
 
     document.addEventListener('keyup', (e) => {
-        if (e.key === 'Meta' || e.key === 'Command') {
-            cmdKeyHeld = false;
+        var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        if (isMac) {
+            if (e.key === 'Meta' || e.key === 'Command') {
+                cmdKeyHeld = false;
+            }
+        } else {
+            if (e.key === 'Control') {
+                cmdKeyHeld = false;
+            }
         }
     });
 

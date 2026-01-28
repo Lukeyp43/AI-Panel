@@ -59,7 +59,7 @@ def should_show_referral() -> bool:
     daily_usage = analytics.get("daily_usage", {})
     days_active = len(daily_usage.keys())
     
-    if days_active < config.get("referral_days_threshold", 2):
+    if days_active < config.get("referral_days_threshold", 3):
         return False
     
     # Check messages today
@@ -70,7 +70,7 @@ def should_show_referral() -> bool:
     messages_today = sum(session.get("messages", 0) for session in todays_sessions)
     
     # Trigger on exact message count (configurable)
-    referral_threshold = config.get("referral_threshold", 2)
+    referral_threshold = config.get("referral_threshold", 4)
     if messages_today < referral_threshold:
         return False
     
